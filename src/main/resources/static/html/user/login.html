@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8" />
+	<title>obs云盘,让美好永远陪伴</title>
+	<!-- 引入样式 -->
+	<link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+	<style>
+		#app {
+			position: relative;
+		}
+
+		/*布局开始*/
+		.el-header,
+		.el-footer {
+			color: #333;
+			text-align: center;
+			line-height: 60px;
+		}
+
+		.el-aside {
+			background-color: #D3DCE6;
+			color: #333;
+			text-align: center;
+			line-height: 200px;
+		}
+
+		.el-main {
+			background-color: #E9EEF3;
+			color: #333;
+			text-align: center;
+			line-height: 90px;
+		}
+
+		body>.el-container {
+			margin-bottom: 40px;
+		}
+
+		.el-container:nth-child(5) .el-aside,
+		.el-container:nth-child(6) .el-aside {
+			line-height: 260px;
+		}
+
+		.el-container:nth-child(7) .el-aside {
+			line-height: 320px;
+		}
+
+		/*布局结束*/
+		/*走马灯开始*/
+		.el-carousel__item h3 {
+			color: #475669;
+			font-size: 14px;
+			opacity: 0.75;
+			line-height: 200px;
+			margin: 0;
+		}
+
+		.el-carousel__item:nth-child(n) {
+			background-color: #99a9bf;
+			background-image: url(../../img/user/yp1.jpg);
+			background-size: 100% 100%;
+		}
+
+		.el-carousel__item:nth-child(2n) {
+			background-color: #d3dce6;
+			background-image: url(../../img/user/yp2.jpg);
+			background-size: 100% 100%;
+		}
+
+		.el-carousel__item:nth-child(3n) {
+			background-color: #d3dce6;
+			background-image: url(../../img/user/yp3.jpg);
+			background-size: 100% 100%;
+		}
+
+		/*走马灯结束*/
+		.ablogini {
+			position: fixed;
+			z-index: 9;
+			width: 350px;
+			height: 370px;
+			left: 70%;
+			top: 200px;
+			opacity: 0.9;
+		}
+	</style>
+</head>
+
+<body>
+	<div id="app">
+		<el-container>
+			<!--头部-->
+			<el-header>
+				<el-row>
+					<el-col :span="12">
+						<div style="float: left;">
+							<img src="../../img/logo/logo.jpg" style="height: 60px; width: 75px" />
+						</div>
+						<el-link
+							style="pointer-events: none;font-size: 30px;font-family: 微软雅黑;font-weight: bold;float: left;margin-left: 10px;">
+							obs云盘</el-link>
+					</el-col>
+					<el-col :span="12">
+
+					</el-col>
+				</el-row>
+			</el-header>
+			<el-main>
+
+
+				<template>
+					<el-carousel :interval="4000" type="card" height="450px">
+						<el-carousel-item v-for="item in 3" :key="item">
+<!--							<h3 class="medium">{{ item }}</h3>-->
+						</el-carousel-item>
+					</el-carousel>
+				</template>
+			</el-main>
+			<div class="ablogin">
+				<el-card class="ablogini" shadow="always">
+					<p style="font-family: '微软雅黑';font-size: 18px;">登录</p>
+					<div style="height: 36px">
+						<p id="getPassword" style="display: none">
+							<el-link type="danger" :underline="false">账号或密码错误，</el-link>
+							<el-link :underline="false" href="repassword.html" type="primary">
+								找回密码</el-link>
+						</p>
+					</div>
+					<el-input placeholder="用户名" v-model="username" clearable>
+					</el-input>
+					<el-input placeholder="密码" v-model="password" show-password></el-input>
+					<template>
+						<el-checkbox v-model="checked" style="margin-top: 20px;margin-bottom: 20px;">下次自动登录
+						</el-checkbox>
+					</template>
+					<el-button @click="login()" :plain="true" style="width: 310px;margin-bottom: 20px;" type="primary">
+						登录</el-button>
+					<el-link :underline="false" href="repassword.html" type="info">忘记密码？
+					</el-link>
+				</el-card>
+			</div>
+			<el-footer>
+				<div>
+					<el-link :underline="false" type="info">©2020 华为obs云盘|</el-link>
+				</div>
+			</el-footer>
+		</el-container>
+	</div>
+
+</body>
+<!--网络资源-->
+<script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.js"></script>
+<script src="https://cdn.bootcss.com/vue/2.6.10/vue.js"></script>
+<!-- 引入组件库 -->
+<script src="https://unpkg.com/element-ui/lib/index.js"></script>
+<script>
+	new Vue({
+		el: '#app',
+		data() {
+			return {
+				username: '',
+				password: '',
+				checked: false
+			}
+		},
+		methods: {
+			login() {
+				var _this = this;
+				$.ajax({
+					url: "/clouddisk/login",
+					type: "post",
+					dataType: "JSON",
+                    contentType: "application/json;charset=UTF-8",
+					data: JSON.stringify(
+                        { username: this.username, password: this.password}
+                    ),
+					success: function (data) {
+						if (data.code === -1) {
+                            alert(data.message);
+						}
+						if (data.code===1) {
+							localStorage.setItem("username",data.data.userName);
+							localStorage.setItem("userId",data.data.userId);
+
+							sessionStorage.setItem('user', JSON.stringify(data.data));
+                            window.location.href="../index.html"
+						}
+					},
+					complete:function (xhr) {
+						/*
+      						获取相关Http Response header
+      						getResponseHeader(key)：获取指定响应头信息
+   	 					*/
+						var token = xhr.getResponseHeader("token");
+						sessionStorage.setItem("token",token);
+					}
+				})
+
+			}
+		},
+	})
+</script>
+
+</html>

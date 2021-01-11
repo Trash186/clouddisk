@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>分享文件</title>
+    <!--网络资源-->
+    <script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.js"></script>
+
+    <!--vue-->
+    <script src="https://cdn.bootcss.com/vue/2.6.10/vue.js"></script>
+
+    <!--element ui-->
+    <script src="https://cdn.bootcss.com/element-ui/2.13.0/index.js"></script>
+    <link href="https://cdn.bootcss.com/element-ui/2.13.0/theme-chalk/index.css" rel="stylesheet">
+
+    <!--jquery.fileDownload.min.js-->
+    <script src="https://cdn.bootcss.com/jquery.fileDownload/1.4.2/jquery.fileDownload.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div v-if="needpass=='no'">
+            <el-table
+                    :data="tableData"
+                    style="width: 100%">
+                <el-table-column
+                        prop="shareFileName"
+                        label="文件名"
+                        width="180">
+                </el-table-column>
+                <el-table-column
+                        prop="size"
+                        :formatter="calcFileSize"
+                        label="文件大小"
+                        width="180">
+                </el-table-column>
+                <el-table-column
+                        fixed="right"
+                        label="操作"
+                        width="100">
+                    <template slot-scope="scope">
+                        <el-button @click="handleClick(scope.row)" type="text" size="small">下载</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </div>
+        <div v-else>
+            <el-input
+                    type="text"
+                    placeholder="请输入密码"
+                    v-model="mypass"
+                    maxlength="4"
+                    show-word-limit>
+            </el-input>
+            <el-button @click="checkPass">提交</el-button>
+        </div>
+    </div>
+</body>
+<script>
+    let vue = new Vue({
+        el: "#app",
+        data: {
+            shareFileId: 0,
+            tableData: [],
+            needpass: null,
+            mypass: ""
+        },
+        methods: {
+            /**
+             * 计算后台传递的文件大小, 并拼接上单位(G,M,KB,B) 后台传递的数据单位是KB
+             */
+            calcFileSize: function (row, column) {
+                let size = row.size;
+                if (size == null) {
+                    size = "-";
+                } else {
+                    let MB = size / 1024;
+                    let GB = size / 1024 / 1024;
+                    if (size < 1)
+                        size = (size * 1024).toFixed(0) + "B";
+                    else if (MB < 1)
+                        size = size.toFixed(2) + "KB";
+                    else if (MB > 1 && MB < 1024)
+                        size = MB.toFixed(2) + "M";
+                    else if (GB > 1)
+                        size = GB.toFixed(2) + "G";
+                }
+                return size;
+            },
+            getShareFile(){
+                //console.log(this.shareFileId);
+                let _this = this;
+                $.ajax({
+                    url: "/share/getShareFile",
+                    type: "get",
+                    data: {
+                        shareId: _this.shareFileId
+                    },
+                    dataType: 'json',
+                    success: function (datas) {
+                        _this.needpass = datas.data[0].needpass;
+                        _this.tableData = datas.data;
+                    }
+                })
+            },
+            handleClick(row){
+                $.fileDownload("/share/COSDownload", {
+                    httpMethod: 'GET',
+                    data: {
+                        key: row.link,
+                        fileName: row.shareFileName
+                    }
+                    /*prepareCallback:function(url){
+                        console.log(url);
+                        console.log("文件下载中...");
+                    },
+                    abortCallback:function(url){
+                        // 异常终止
+                        console.log("文件下载异常！！");
+                    },
+                    successCallback:function(url){
+                        console.log("文件下载成功！！");
+                    },
+                    failCallback: function (html, url) {
+                        console.log("文件下载失败！！");
+                    }*/
+                });
+            },
+            /**
+             * 验证密码
+             */
+            checkPass(){
+                if(this.mypass === this.needpass){
+                    this.needpass = "no";
+                }
+            }
+        },
+        created(){
+            let url= String(window.document.URL);
+            //console.log(url);
+            let id = url.substring(url.lastIndexOf("?")+1,url.length);
+            this.shareFileId = id;
+        },
+        mounted(){
+            this.getShareFile();
+        }
+    })
+</script>
+</html>

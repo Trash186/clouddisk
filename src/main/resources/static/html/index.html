@@ -1,0 +1,2846 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8"/>
+    <title>网盘首页</title>
+    <!--网络资源-->
+    <script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.js"></script>
+
+    <!--vue-->
+    <script src="https://cdn.bootcss.com/vue/2.6.10/vue.js"></script>
+
+    <!--web upload-->
+    <link href="https://cdn.staticfile.org/webuploader/0.1.5/webuploader.css" rel="stylesheet" type="text/css"/>
+    <script type="text/javascript" src="http://cdn.staticfile.org/webuploader/0.1.5/webuploader.min.js"></script>
+
+    <!--element ui-->
+    <script src="https://cdn.bootcss.com/element-ui/2.13.0/index.js"></script>
+    <link href="https://cdn.bootcss.com/element-ui/2.13.0/theme-chalk/index.css" rel="stylesheet">
+
+    <!--md5-->
+    <script src="https://cdn.bootcss.com/spark-md5/3.0.0/spark-md5.min.js"></script>
+
+    <!--axios.js-->
+    <script src="https://cdn.bootcss.com/axios/0.19.2/axios.min.js"></script>
+
+    <!--jquery.fileDownload.min.js-->
+    <script src="https://cdn.bootcss.com/jquery.fileDownload/1.4.2/jquery.fileDownload.min.js"></script>
+
+    <!--登录拦截器-->
+    <script src="/js/loginCheck.js"></script>
+
+</head>
+
+<body style="margin: 0px;">
+<div id="root">
+    <el-container style="height: 700px; border: 1px solid #eee">
+        <!--头部-->
+        <el-header style="text-align: right; font-size: 12px; box-shadow: 0 0 6px 0 rgba(0, 0, 0, 0.1)">
+            <el-row>
+                <el-col :span="4">
+                    <el-container style="cursor: pointer">
+                        <el-image style="height: 58px; width: 58px" src="../img/logo/logo.jpg"
+                                  fit="contain" @click="getAllFile">
+                        </el-image>
+                        </el-image>
+                        <span style="line-height:58px;font-size: 20px;font-family: 微软雅黑;font-weight: bold"
+                              @click="getAllFile">
+                            obs云盘
+                        </span>
+                    </el-container>
+                </el-col>
+                <el-col :span="10">
+                    <el-menu class="el-menu-demo" mode="horizontal" @select="topnavhandleSelect"
+                             style="border: 0; height: 60px;">
+                        <el-menu-item index="2" style="font-size: 16px" @click="jumpToDir">网盘</el-menu-item>
+                        <el-menu-item index="3" style="font-size: 16px">分享</el-menu-item>
+                        <el-menu-item index="4" style="font-size: 16px">更多</el-menu-item>
+                    </el-menu>
+                </el-col>
+                <el-col :span="10" style="float: right;">
+                    <el-row type="flex" class="row-bg" justify="end" align="middle">
+                        <el-col :span="6">
+                            <el-dropdown>
+                                    <span class="el-dropdown-link">
+                                        您好，{{user.userName}}<i class="el-icon-arrow-down el-icon&#45;&#45;right"></i>
+                                    </span>
+                                <el-dropdown-menu slot="dropdown">
+                                    <el-dropdown-item>
+                                        <el-link :underline="false"
+                                                 target="_self" @click="mycenter">
+                                            个人中心
+                                        </el-link>
+                                    </el-dropdown-item>
+                                    <el-dropdown-item>
+                                        <el-link :underline="false"
+                                                 @click="quit">安全退出
+
+                                        </el-link>
+                                    </el-dropdown-item>
+
+                                </el-dropdown-menu>
+                            </el-dropdown>
+                            <el-divider direction="vertical"></el-divider>
+                        </el-col>
+                    </el-row>
+                </el-col>
+            </el-row>
+        </el-header>
+        <!--头部end-->
+
+        <!--身体-->
+        <el-container>
+            <!--左侧导航条-->
+            <el-aside width="200px" height="1000px" style="background-color: rgb(247, 247, 247)">
+                <el-menu :default-openeds="['1']">
+                    <el-submenu index="1">
+                        <template slot="title">
+                            <i class="el-icon-document-copy"></i>
+                            <span>全部文件</span>
+                        </template>
+                        <el-menu-item index="1-1" @click="getFile">文件</el-menu-item>
+                        <el-menu-item index="1-2" @click="getDir">文件夹</el-menu-item>
+                    </el-submenu>
+                    <el-menu-item index="2" @click="getGroupFile">
+                        <i class="el-icon-chat-line-round"></i>
+                        <span slot="title">群组文件</span>
+                    </el-menu-item>
+
+                    <el-menu-item index="3" @click="getUser" v-has="parameter">
+                        <i class="el-icon-user"></i>
+                        <span slot="title">用户管理</span>
+                    </el-menu-item>
+
+                    <!--这个分享自己写的-->
+                    <el-menu-item index="4" @click="getShared">
+                        <i class="el-icon-share"></i>
+                        <span slot="title">我的分享</span>
+                    </el-menu-item>
+
+                    <el-menu-item index="5" @click="getDeleted">
+                        <i class="el-icon-delete"></i>
+                        <span slot="title">回收站</span>
+                    </el-menu-item>
+                </el-menu>
+                <br/><br/>
+                <el-container>
+                    <el-footer>
+                        <el-progress :show-text="false" :stroke-width="8" :percentage="capacityPer"
+                                     style="width: 150px"></el-progress>
+                        <el-link style="pointer-events: none;">{{userCapacity}}/{{userTotal}}</el-link>
+                    </el-footer>
+                </el-container>
+            </el-aside>
+            <!--左侧导航条end-->
+
+            <!--右侧内容区域-->
+            <el-container>
+                <el-header>
+                    <el-main v-show="this.headVisible">
+                        <!-- 普通文件列表按钮组 开始 -->
+                        <div v-show="!this.isVistGroup">
+                            <el-button type="primary" @click="uploadDialog = true" plain>上传</el-button>
+                            <el-button type="primary" plain @click="createDirDialogVisible = true" class="createDir"
+                                       :style="{display: isRoot}">新建文件夹
+                            </el-button>
+                            <el-button-group v-show="this.multipleSelection.length>0">
+                                <el-button type="primary" plain @click="showShareFile">分享</el-button>
+                                <el-button type="primary" plain @click="downloadFile">下载</el-button>
+                                <el-button type="primary" plain @click="deleteDialogVisible = true">删除</el-button>
+                                <el-button type="primary" plain :disabled="multipleSelection.length==1?false:true"
+                                           @click="showrRenameDialog">重命名
+                                </el-button>
+                                <el-button type="primary" plain @click="showCopyDialog">复制到</el-button>
+                                <el-button type="primary" plain @click="showMoveDialog">移动到</el-button>
+                            </el-button-group>
+                            <el-input v-model="searchInput" placeholder="搜索您的文件" style="float: right; width: 350px"
+                                      maxlength="15" show-word-limit clearable @clear="clearSearchInput">
+                                <el-button slot="append" icon="el-icon-search" @click="searchFile"></el-button>
+                            </el-input>
+                        </div>
+                        <!-- 普通文件列表按钮组 开始 -->
+                        <!-- ====================== -->
+                        <!-- 群组文件列表按钮组 开始 -->
+                        <div v-show="this.isVistGroup">
+                            <el-button type="primary" @click="uploadGroupDialog = true" plain>上传
+                            </el-button>
+                            <el-button type="primary" plain @click="createGroupDirDialogVisible = true"
+                                       class="createDir"
+                                       :style="{display: isRoot}" :style="{display: isRoot}">新建文件夹
+                            </el-button>
+                            <el-button-group v-show="this.multipleSelection.length>0">
+                                <!--                                <el-button type="primary" plain @click="showShareFile">分享</el-button>-->
+                                <el-button type="primary" plain @click="downloadFile">下载</el-button>
+                                <el-button type="primary" plain @click="deleteGroupDialogVisible = true"
+                                           :style="{display: isRoot}">删除
+                                </el-button>
+                                <!--                                <el-button type="primary" plain :disabled="multipleSelection.length==1?false:true"-->
+                                <!--                                           @click="showrRenameDialog">重命名-->
+                                <!--                                </el-button>-->
+                                <!--                                <el-button type="primary" plain @click="showCopyDialog">复制到</el-button>-->
+                                <!--                                <el-button type="primary" plain @click="showMoveDialog">移动到</el-button>-->
+                            </el-button-group>
+                            <!--                            <el-input v-model="searchInput" placeholder="搜索您的文件" style="float: right; width: 350px"-->
+                            <!--                                      maxlength="15" show-word-limit clearable @clear="clearSearchInput">-->
+                            <!--                                <el-button slot="append" icon="el-icon-search" @click="searchFile"></el-button>-->
+                            <!--                            </el-input>-->
+                        </div>
+                        <!-- 群组文件列表按钮组 结束 -->
+                    </el-main>
+                    <div style="padding: 25px" v-show="!this.headVisible">
+                        <div v-show="this.headRecycleVisible">
+                            <el-button type="primary" @click="cleanRecycleBin" plain>一键清空</el-button>
+                            <el-button type="primary" @click="recycleFile" plain v-show="multipleSelection.length>0">恢复</el-button>
+                            <el-button type="primary" @click="realDelete" plain v-show="multipleSelection.length>0">彻底删除</el-button>
+
+                        </div>
+                        <div v-show="this.headShareVisible">
+                            <el-button type="primary" @click="deleteShare" plain v-show="multipleSelection.length>0">取消分享</el-button>
+                            <el-button type="primary" @click="updateShareFile" plain v-show="multipleSelection.length>0">修改分享</el-button>
+                        </div>
+                        <div v-show="this.headUserVisible">
+                            <el-button type="primary" @click="addUserDialog=true" plain>添加用户</el-button>
+                            <el-button type="primary" @click="addUserListDialog=true" plain>批量添加</el-button>
+                            <el-button type="primary" @click="deleteUserDialogVisible=true" plain v-show="multipleSelection.length>0">删除用户</el-button>
+                        </div>
+                    </div>
+
+
+                </el-header>
+                <el-container>
+                    <el-main>
+                        <div v-show="!this.isVistGroup">
+                            <div style="display: inline" v-show="this.headVisible">
+                                <el-button type="primary" @click="backToPre" plain>返回上一层</el-button>
+                                当前路径：{{currentDir}}
+                            </div>
+                        </div>
+                        <div style="display: inline" v-show="this.isVistGroup">
+                            <el-button type="primary" @click="groupBackToPre" plain>返回上一层
+                            </el-button>
+                            当前群组文件路径：{{groupCurDir}}
+                        </div>
+                        <div style="display: inline" v-show="this.recycleBinTableShow">
+                            <el-button type="primary" @click="RcyclebinToPre" plain>返回上一层
+                            </el-button>
+                            当前路径：{{recyclebincurrentDir}}
+                        </div>
+
+                        <template>
+                            <!--网盘文件-->
+                            <el-table id="table" height="600" ref="multipleTable" :data="tableData"
+                                      v-loading="loading" tooltip-effect="dark" style="width: 100%"
+                                      :default-sort="{prop: 'updateTime', order: 'descending'}"
+                                      @selection-change="handleSelectionChange" v-show="this.tableShow">
+                                <el-table-column type="selection" width="55">
+                                </el-table-column>
+                                <el-table-column label="文件名" sortable>
+                                    <template slot-scope="scope">
+                                        <i :class="iconClass(scope.row.fileName)"
+                                           style="font-size: 25px;opacity: 0.5"></i>
+                                        <el-link style="font-size: 13px" :underline="false"
+                                                 @click="skipClick(scope.row.fileName)">{{ scope.row.fileName }}
+                                        </el-link>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column align="right" prop="fileSize" label="大小" :formatter="calcFileSize"
+                                                 sortable>
+                                </el-table-column>
+                                <el-table-column align="right" prop="fileModitime" sortable label="修改日期">
+                                </el-table-column>
+                            </el-table>
+
+                            <!--展示回收站文件的table-->
+                            <el-table id="table" height="600" ref="multipleTable" :data="recycleBinTableData"
+                                      v-loading="loading" tooltip-effect="dark" style="width: 100%"
+                                      :default-sort="{prop: 'updateTime', order: 'descending'}"
+                                      @selection-change="handleSelectionChange" v-show="this.recycleTableShow">
+                                <el-table-column type="selection" width="55">
+                                </el-table-column>
+                                <el-table-column label="文件名" sortable>
+                                    <template slot-scope="scope">
+                                        <i :class="iconClass(scope.row.fileName)"
+                                           style="font-size: 25px;opacity: 0.5"></i>
+                                        <el-link style="font-size: 13px" :underline="false"
+                                                 @click="DeleteClick(scope.row.fileName)">{{ scope.row.fileName }}
+                                        </el-link>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column align="right" prop="fileSize" label="大小" :formatter="calcFileSize"
+                                                 sortable>
+                                </el-table-column>
+                                <el-table-column align="right" prop="fileModitime" sortable label="修改日期">
+                                </el-table-column>
+                            </el-table>
+
+                            <!--展示分享文件的table-->
+                            <template>
+                            <el-table id="shareTable" height="470" ref="multipleTable" :data="tableShareData"
+                                      v-loading="loading" tooltip-effect="dark" style="width: 100%;"
+                                      :default-sort="{prop: 'updateTime', order: 'descending'}"
+                                      @selection-change="handleSelectionChange" v-show="this.shareTableShow">
+                                <el-table-column type="selection" width="55">
+                                </el-table-column>
+                                <el-table-column type="expand">
+                                    <template slot-scope="props">
+                                        <el-form label-position="left" inline style="height:35px;">
+                                            <el-form-item label="分享链接：" style="margin-bottom: 0px;">
+                                                <span>{{props.row.virtualUrl }}</span>
+                                            </el-form-item>
+                                        </el-form>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column prop="fileName" sortable label="分享文件" sortable>
+                                </el-table-column>
+                                <el-table-column prop="shareCtime" sortable label="分享时间" sortable>
+                                </el-table-column>
+                                <el-table-column prop="deadTime" sortable label="失效时间">
+                                </el-table-column>
+                            </el-table>
+
+                                <div v-show="this.shareTableShow" style="margin-left: 25%;">
+                                    <el-pagination
+                                            @size-change="handleSizeChangeShare"
+                                            @current-change="handleCurrentChangeShare"
+                                            :current-page="pageCount"
+                                            :page-sizes="[3, 6, 7 , 8]"
+                                            :page-size="pageSize"
+                                            layout="total, sizes, prev, pager, next, jumper"
+                                            :total="total">
+                                    </el-pagination>
+                                </div>
+                            </template>
+
+
+
+                            <!--用户-->
+                            <template>
+                            <el-table id="userTable" height="460" ref="multipleTable" :data="tableUserData"
+                                      v-loading="loading" tooltip-effect="dark" style="width: 100%;"
+                                      :default-sort="{prop: 'updateTime', order: 'descending'}"
+                                      @selection-change="handleSelectionChange" v-show="this.userTableShow">
+                                <el-table-column type="selection" width="55">
+                                </el-table-column>
+                                <el-table-column  prop="userName" sortable label="用户名" sortable>
+                                </el-table-column>
+                                <el-table-column  prop="userMobile" sortable label="电话" sortable>
+                                </el-table-column>
+                                <el-table-column  prop="userEmail" sortable label="邮箱">
+                                </el-table-column>
+                            </el-table>
+                                <div v-show="this.userTableShow" style="margin-left: 25%;">
+                                    <el-pagination
+                                            @size-change="handleSizeChangeUser"
+                                            @current-change="handleCurrentChangeUser"
+                                            :current-page="pageCountUser"
+                                            :page-sizes="[3, 6, 7 , 8]"
+                                            :page-size="pageSizeUser"
+                                            layout="total, sizes, prev, pager, next, jumper"
+                                            :total="totalUser">
+                                    </el-pagination>
+                                </div>
+
+                            </template>
+
+                        </template>
+                    </el-main>
+                </el-container>
+            </el-container>
+            <!--右侧内容区域end-->
+
+        </el-container>
+        <!--身体end-->
+
+        <!--尾部-->
+        <el-footer>
+
+        </el-footer>
+        <!--尾部end-->
+    </el-container>
+
+    <!--------------------------------弹窗部分--------------------------------------->
+    <!-- 新建文件夹弹窗 -->
+    <el-dialog title="新建文件夹" :visible.sync="createDirDialogVisible" width="30%" center>
+        <el-input type="text" placeholder="请输入文件夹名" v-model="createDirValue" maxlength="15" show-word-limit>
+        </el-input>
+        <span slot="footer" class="dialog-footer">
+                <el-button @click="createDirDialogVisible = false">取 消</el-button>
+                <el-button type="primary" @click="createNewDir">确 定</el-button>
+            </span>
+    </el-dialog>
+
+
+    <!-- 新建群组文件夹弹窗 -->
+    <el-dialog title="新建文件夹" :visible.sync="createGroupDirDialogVisible" width="30%" center>
+        <el-input type="text" placeholder="请输入文件夹名" v-model="createDirValue" maxlength="15" show-word-limit>
+        </el-input>
+        <span slot="footer" class="dialog-footer">
+                <el-button @click="createGroupDirDialogVisible = false">取 消</el-button>
+                <el-button type="primary" @click="createNewGroupDir">确 定</el-button>
+            </span>
+    </el-dialog>
+
+    <!-- 添加用户弹窗 -->
+    <el-dialog title="添加用户" :visible.sync="addUserDialog" width="30%" center>
+        <el-input type="text" placeholder="请输入部门id" v-model="departmentId" maxlength="1"></el-input>
+        <el-input type="text" placeholder="请输入用户名" v-model="userName" maxlength="15"></el-input>
+        <el-input type="text" placeholder="请输入真实姓名" v-model="userRealname" maxlength="15"></el-input>
+        <el-input type="password" placeholder="请输入密码" v-model="userPwd" maxlength="15"></el-input>
+        <el-input type="text" placeholder="请输入联系电话" v-model="userMobile" maxlength="11"></el-input>
+        <el-input type="text" placeholder="请输入邮箱" v-model="userEmail" maxlength="50"></el-input>
+        <span slot="footer" class="dialog-footer">
+                <el-button @click="addUserDialog = false">取 消</el-button>
+                <el-button type="primary" @click="addUser">确 定</el-button>
+            </span>
+    </el-dialog>
+
+
+    <!-- 修改文件夹或者文件的名称弹窗 -->
+    <el-dialog title="修改文件夹名" :visible.sync="updateNameDialogVisible" width="30%" center>
+        <el-input type="text" placeholder="请输入名称" v-model="updateOldNameValue" maxlength="15" show-word-limit>
+        </el-input>
+        <span slot="footer" class="dialog-footer">
+                <el-button @click="updateNameDialogVisible = false">取 消</el-button>
+                <el-button type="primary" @click="updateOldNameMethod">确 定</el-button>
+            </span>
+    </el-dialog>
+
+    <!-- 删除用户的确认弹窗 -->
+    <el-dialog title="提示" :visible.sync="deleteUserDialogVisible" width="30%" center>
+        <span>确定删除吗?</span>
+        <span slot="footer" class="dialog-footer">
+                <el-button @click="deleteUserDialogVisible = false">取 消</el-button>
+                <el-button type="primary" @click="deleteUser">确 定</el-button>
+            </span>
+    </el-dialog>
+
+
+    <!-- 删除文件或文件夹的确认弹窗 -->
+    <el-dialog title="提示" :visible.sync="deleteDialogVisible" width="30%" center>
+        <span>确定删除吗?</span>
+        <span slot="footer" class="dialog-footer">
+                <el-button @click="deleteDialogVisible = false">取 消</el-button>
+                <el-button type="primary" @click="deleteMethod">确 定</el-button>
+            </span>
+    </el-dialog>
+
+    <!-- 删除群组文件或文件夹的确认弹窗 -->
+    <el-dialog title="提示" :visible.sync="deleteGroupDialogVisible" width="30%" center>
+        <span>确定删除吗?</span>
+        <span slot="footer" class="dialog-footer">
+                <el-button @click="deleteGroupDialogVisible = false">取 消</el-button>
+                <el-button type="primary" @click="deleteGroupMethod">确 定</el-button>
+            </span>
+    </el-dialog>
+
+    <!-- 复制弹窗 -->
+    <el-dialog
+            title="选择目标文件夹"
+            :visible.sync="copyDialogVisible"
+            width="30%"
+            center>
+        <div style="display: inline">
+            <el-button type="primary" @click="copyBack" plain
+                       icon="el-icon-arrow-left">返回上一层
+            </el-button>
+            当前路径：{{curCopyPath}}
+            <el-button type="success" @click="copyToLocal" plain style="float: right;"
+                       icon="el-icon-folder-checked" :disabled="copyBtn">复制到该级目录
+            </el-button>
+        </div>
+        <el-table id="copyTable"
+                  ref="multipleTable"
+                  :data="copyTabData"
+                  v-loading="copyLoading"
+                  element-loading-text="拼命加载中"
+                  element-loading-spinner="el-icon-loading"
+                  element-loading-background="rgba(0, 0, 0, 0.6)">
+            <el-table-column label="文件夹" sortable>
+                <template slot-scope="copyScope">
+                    <i class="el-icon-folder"
+                       style="font-size: 25px;opacity: 0.5"></i>
+                    <el-link style="font-size: 13px" :underline="false"
+                             @click="copyNext(copyScope.row.fileName)">{{ copyScope.row.fileName }}
+                    </el-link>
+                </template>
+            </el-table-column>
+        </el-table>
+    </el-dialog>
+
+
+    <!-- 移动弹窗 -->
+    <el-dialog
+            title="选择目标文件夹"
+            :visible.sync="moveDialogVisible"
+            width="30%"
+            center>
+        <div style="display: inline">
+            <el-button type="primary" @click="copyBack" plain
+                       icon="el-icon-arrow-left">返回上一层
+            </el-button>
+            当前路径：{{curCopyPath}}
+            <el-button type="success" @click="moveMethod" plain style="float: right;"
+                       icon="el-icon-folder-checked">移动到该级目录
+            </el-button>
+        </div>
+        <el-table id="copyTable"
+                  ref="multipleTable"
+                  :data="copyTabData"
+                  v-loading="loading"
+                  element-loading-text="拼命加载中"
+                  element-loading-spinner="el-icon-loading"
+                  element-loading-background="rgba(0, 0, 0, 0.6)">
+            <el-table-column type="selection" width="55">
+            </el-table-column>
+            <el-table-column label="文件夹" sortable>
+                <template slot-scope="copyScope">
+                    <i class="el-icon-folder"
+                       style="font-size: 25px;opacity: 0.5"></i>
+                    <el-link style="font-size: 13px" :underline="false"
+                             @click="copyNext(copyScope.row.fileName)">{{ copyScope.row.fileName }}
+                    </el-link>
+                </template>
+            </el-table-column>
+        </el-table>
+    </el-dialog>
+
+
+    <!-- 上传弹窗 -->
+    <el-drawer title="上传文件" :visible.sync="uploadDialog" direction="rtl" size="40%">
+        <el-container>
+            <el-header>
+                <el-upload
+                        class="upload-demo"
+                        :action="action"
+                        :ref="upload"
+                        :file-list="modeList"
+                        :http-request="modeUpload">
+                    <el-button slot="trigger" size="small" type="primary">选取文件</el-button>
+                    <el-button :disabled="uploadButtonResolve" type="success" size="small"
+                               :loading="uploadButtonLoading" @click="upload">
+                        {{uploadButtonLoading==true?'文件解析中':'上传到OBS云盘'}}
+                    </el-button>
+                </el-upload>
+            </el-header>
+            <el-main style="margin-top: 80px;">
+            </el-main>
+        </el-container>
+    </el-drawer>
+
+
+    <!-- 群组上传弹窗 -->
+    <el-drawer title="上传文件" :visible.sync="uploadGroupDialog" direction="rtl" size="40%">
+        <el-container>
+            <el-header>
+                <el-upload
+                        class="upload-demo"
+                        :action="action"
+                        :ref="upload"
+                        :file-list="modeList"
+                        :http-request="modeUpload">
+                    <el-button slot="trigger" size="small" type="primary">选取文件</el-button>
+                    <el-button :disabled="uploadButtonResolve" type="success" size="small"
+                               :loading="uploadButtonLoading" @click="uploadToGroup">
+                        {{uploadButtonLoading==true?'文件解析中':'上传到OBS云盘'}}
+                    </el-button>
+                </el-upload>
+            </el-header>
+            <el-main style="margin-top: 80px;">
+            </el-main>
+        </el-container>
+    </el-drawer>
+
+
+    <!--批量导入用户弹窗-->
+    <el-drawer title="导入用户EXCEL表" :visible.sync="addUserListDialog" direction="rtl" size="40%">
+        <el-container>
+            <el-header>
+                <el-upload
+                        class="upload-demo"
+                        :action="action"
+                        :ref="upload"
+                        :file-list="modeList"
+                        :http-request="modeUpload">
+                    <el-button slot="trigger" size="small" type="primary">选取EXCEL文件</el-button>
+                    <el-button :disabled="uploadButtonResolve" type="success" size="small"
+                               :loading="uploadButtonLoading" @click="uploadExcel">
+                        {{uploadButtonLoading==true?'文件解析中':'导入'}}
+                    </el-button>
+                </el-upload>
+            </el-header>
+            <el-main style="margin-top: 80px;">
+            </el-main>
+        </el-container>
+    </el-drawer>
+
+    <!--图片预览框-->
+    <el-dialog title="文件预览" :visible.sync="picDialogVisible" width="80%" center>
+        <div v-loading="picLoading">
+            <el-image :src="picSrc"></el-image>
+        </div>
+        <span slot="footer" class="dialog-footer"></span>
+    </el-dialog>
+
+<!--    <el-dialog title="文件预览" :visible.sync="videoDialogVisible" width="80%" center>-->
+<!--                <div v-loading="videoLoading">-->
+<!--                    <video :src="videoSrc"></video>-->
+<!--                </div>-->
+<!--        <span slot="footer" class="dialog-footer"></span>-->
+<!--    </el-dialog>-->
+
+    <!--分享框-->
+    <el-dialog title="分享文件" :visible.sync="shareFileDialogVisible" width="30%">
+        <span style="color: #909399; font-size: 16px;">文件名：</span><span style="color: #606266;font-size: 16px;">{{shareFileNow.fileName}}</span>
+        <br/><br/>
+        <span style="color: #909399; font-size: 16px;">分享时长：</span>
+        <br/><br/>
+        <el-radio-group v-model="shareTime" style="margin-left: 30px;">
+            <el-radio :label="3600" >1小时</el-radio>
+            <el-radio :label="86400">1天</el-radio>
+            <el-radio :label="259200">3天</el-radio>
+            <el-radio :label="604800">7天</el-radio>
+        </el-radio-group>
+        <br/>
+        <span slot="footer" class="dialog-footer">
+                <el-button @click="shareFileDialogVisible = false">取 消</el-button>
+                <el-button type="primary" @click="shareFileClick">确 定</el-button>
+            </span>
+    </el-dialog>
+
+    <!--修改分享框-->
+    <el-dialog title="修改分享链接" :visible.sync="shareUpdateVisble" width="30%">
+        <span style="color: #909399; font-size: 16px;">文件名：</span><span style="color: #606266;font-size: 16px;">{{shareUpdateFileNow.fileName}}</span>
+        <br/><br/>
+        <span style="color: #909399; font-size: 16px;">失效时间：</span>
+        <br/><br/>
+        <el-radio-group v-model="shareTime" style="margin-left: 30px;">
+            <el-radio :label="3600">1小时后</el-radio>
+            <el-radio :label="86400">1天后</el-radio>
+            <el-radio :label="259200">3天后</el-radio>
+            <el-radio :label="604800">7天后</el-radio>
+        </el-radio-group>
+        <br/>
+        <span slot="footer" class="dialog-footer">
+                <el-button @click="shareUpdateVisble = false">取 消</el-button>
+                <el-button type="primary" @click="updateShare">确 定</el-button>
+            </span>
+    </el-dialog>
+
+</div>
+
+
+<script>
+    //接收session
+    var userJson = sessionStorage.getItem('user');
+    userEntity = JSON.parse(userJson);
+    console.log(userEntity);  //user对象
+    // 权限指令
+    Vue.directive('has', {
+        bind: function (el, binding) {
+            if (!Vue.prototype.$_has(binding.value)) {
+                el.style.display = 'none'
+            }
+        }
+    });
+    // 权限检查方法
+    Vue.prototype.$_has = function (value) {
+        let isExist = false;
+        //  获取拥有的权限
+        let userPart = userEntity.userPart;
+        if (userPart === 1) {
+            isExist = true
+        }
+        return isExist
+    };
+    var vue = new Vue({
+        el: "#root",
+        data() {
+            return {
+                action: 'https://jsonplaceholder.typicode.com/posts/',
+                mode: {}
+            }
+        },
+        data: {
+            user: userEntity,
+            shareTime: 3600,
+            tableShow: true,  //第一表格
+            userTableShow:false,
+            shareTableShow:false,
+            recycleTableShow:false,
+            headRecycleVisible:false,
+            headUserVisible:false,
+            headShareVisible:false,
+            fileIds: '',
+            loading: true,
+            picLoading: true,
+            videoLoading: true,
+
+            //用户头像
+            headPic: "../../img/1.jpg",
+            //上传文件列表
+            fileList: [],
+            //显示目录的层级, 比如 : 全部文件 > 我的图片 > 我的文件1
+            dirList: [{
+                id: 0,
+                userId: null,
+                parentId: null,
+                name: "全部文件"
+            }],
+            // 当前所在目录
+            currentDir: "/",
+            // 上一级目录
+            parentDir: "/",
+            //当前目录的id
+            nowDirObj: {
+                id: 0,
+                userId: null,
+                parentId: null,
+                name: null
+            },
+            //搜索框中的数据
+            searchInput: "",
+            //复选框选中元素列表
+            multipleSelection: [],
+            //表格中的数据
+            tableData: [],
+            //回收站数据
+            recycleBinTableData: [],
+            //回收站Table展示
+            recycleBinTableShow: false,
+            //分享表格中的数据.....................................................
+            tableShareData: [],
+            tableUserData: [],
+            //上传弹出的抽屉
+            uploadDialog: false,
+            //群组上传弹出的抽屉
+            uploadGroupDialog: false,
+            addUserListDialog:false,
+            //上传的进度列表
+            uploadFileProgress: [],
+            //上传到服务器按钮的变化
+            uploadButtonLoading: false,
+            uploadButtonResolve: false,
+            //新建文件夹弹窗
+            createDirDialogVisible: false,
+            //新建群组文件夹弹窗
+            createGroupDirDialogVisible: false,
+            //头部显示
+            headVisible: true,
+            createDirValue: "",
+            //修改文件名称弹窗
+            updateNameDialogVisible: false,
+            updateOldNameValue: "",
+            //添加用户
+            departmentId:"",
+            userName:"",
+            userRealname:"",
+            userPwd:"",
+            userMobile:"",
+            userEmail:"",
+            deleteUserDialogVisible: false,
+            //删除文件或者文件名的弹窗
+            deleteDialogVisible: false,
+            //删除群组文件或者文件名的弹窗
+            deleteGroupDialogVisible: false,
+            //添加用户弹窗
+            addUserDialog:false,
+            //复制或者移动弹窗
+            copyDialogVisible: false,
+            moveDialogVisible: false,
+            //图片预览弹窗
+            picDialogVisible: false,
+            videoDialogVisible : false,
+            //图片路径
+            picSrc: "",
+            videoSrc:"",
+            //显示树形结构的文件目录(复制和移动所用)
+            treeDirData: [],
+            defaultProps: {
+                children: 'children',
+                label: 'name'
+            },
+            //当前选中的节点目录
+            currentSelectTreeNode: {},
+            //用户capacity
+            userCapacity: 0,
+            //用户capacity比例
+            capacityPer: 0,
+            //用户总容量
+            userTotal: 0,
+            //通知小红点显示与否
+            isDot: false,
+            //分享
+            //shareTable : false,
+            //分享文件框
+            shareFileDialogVisible: false,
+            //修改分享框
+            shareUpdateVisble: false,//...........................................................
+            //分享类型 公开 私密
+            shareType: true,
+            //现在分享的文件
+            shareFileNow: {},
+            //现在修改的文件链接
+            shareUpdateFileNow: {},//......................................................
+            //分享列表分页属性
+            total:0,
+            pageCount: 1,//代表默认第一页
+            pageSize: 7,//每页的条数为7
+            totalUser:0,
+            pageCountUser: 1,//代表默认第一页
+            pageSizeUser: 7,//每页的条数为7
+
+            //分享密码
+            shareFilePassword: "",
+            // 复制文件所用
+            // 文件夹路径
+            copyTabData: [],
+            // 当前路径
+            curCopyPath: '/',
+            // 上一级路径
+            preCopyPath: '/',
+            copyMultipleSelection: [],
+            copyLoading: false,
+            copyBtn: false,
+            //回收站
+            // 当前所在目录
+            recyclebincurrentDir: "/",
+            // 上一级目录
+            recyclebinparentDir: "/",
+            // 复制按钮
+            copyBtn: false,
+            // 群组文件用
+            // 是否管理员
+            isRoot: '',
+            // 是否正在浏览群组文件
+            isVistGroup: false,
+            // 群组文件当前路径
+            groupCurDir: '/',
+            // 群组文件上一级路径
+            groupPreDir: '/'
+        },
+
+        methods: {
+
+            modeUpload: function (item) {
+                console.log(item.file);
+                this.mode = item.file
+            },
+            uploadExcel:function()
+            {
+                let fd = new FormData();
+                let _this = this;
+                fd.append('file', this.mode);
+                // for (var value of fd.keys()) {
+                //     console.log(value);
+                // }
+                axios.post('/clouddisk/user/importUsers', fd, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data'
+                    }
+                }).then(response => {
+                    console.log(response.data);
+                    console.log(response.data.code);
+
+                    if (response.data.code === 1) {
+                        //this.$refs.upload.clearFiles();
+                        _this.messageAlert("success", "导入成功！");
+                        _this.getUser();
+
+                    } else {
+                        _this.messageAlert("error", response.data.message);
+                    }
+                })
+
+            },
+            uploadToGroup: function () {
+                let fd = new FormData();
+                let _this = this;
+                fd.append('file', this.mode);
+                fd.append('userId', userEntity.userId);
+                fd.append('path', this.groupCurDir);
+                axios.post('/clouddisk/file/uploadToGroup', fd, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data'
+                    }
+                }).then(response => {
+                    console.log(response.data);
+                    console.log(response.data.code);
+
+                    if (response.data.code === 1) {
+                        //this.$refs.upload.clearFiles();
+                        _this.messageAlert("success", "文件上传成功！");
+                        _this.getGroupFile();
+
+                    } else {
+                        _this.messageAlert("error", response.data.message);
+                    }
+                })
+            },
+            upload: function () {
+                let fd = new FormData();
+                let _this = this;
+                fd.append('file', this.mode);
+                fd.append('userId', userEntity.userId);
+                for (var value of fd.keys()) {
+                    console.log(value);
+                }
+                axios.post('/clouddisk/file/testForUpload', fd, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data'
+                    }
+                }).then(response => {
+                    console.log(response.data);
+                    console.log(response.data.code);
+
+                    if (response.data.code === 1) {
+                        //this.$refs.upload.clearFiles();
+                        _this.messageAlert("success", "文件上传成功！");
+                        _this.showTableData();
+
+                    } else {
+                        _this.messageAlert("error", response.data.message);
+                    }
+                })
+
+            },
+            /**
+             * 点击表格上的全部文件进行数据刷新, 并将 nowDirObj 初始化
+             */
+            jumpToDir: function () {
+                this.showTableData(0);
+            },
+            /**
+             * 给表格赋值
+             */
+            showTableData: function () {
+                let _this = this;
+                this.shareTableShow = false;
+                let data = {
+                    userId: userEntity.userId,
+                    path: _this.currentDir
+                };
+                axios.post("/clouddisk/file/getAllList", data).then(function (response) {
+                    // console.log(response.data.data);
+                    _this.tableData = response.data.data;
+                    _this.loading = false;
+                });
+            },
+            /**
+             * 返回上一级
+             */
+            backToPre: function () {
+                if (this.currentDir == "/") {
+                    this.showTableData();
+                    this.parentDir = "/";
+                }
+                var pre = this.parentDir;
+                this.currentDir = this.parentDir;
+                this.showTableData();
+                var s = pre.lastIndexOf("/");
+                this.parentDir = pre.substr(0, pre.lastIndexOf("/", s - 1) + 1);
+                // console.log("当前路径" + this.currentDir);
+                // console.log("上一级路径" + this.parentDir);
+            },
+            /**
+             * 群组文件返回上一级
+             */
+            groupBackToPre: function () {
+                if (this.groupCurDir == '/') {
+                    this.groupPreDir = '/';
+                    this.getGroupFile();
+                } else {
+                    let pre = this.groupPreDir;
+                    this.groupCurDir = pre;
+                    this.getGroupFile();
+                    let s = pre.lastIndexOf("/");
+                    this.groupPreDir = pre.substr(0, pre.lastIndexOf("/", s - 1) + 1);
+                }
+            },
+            /**
+             * 点击表格中的数据: 如果是目录 目录的点击事件,进入目录的子目录
+             */
+            skipClick: function (name) {
+                // 如果是目录
+                //console.log(name);
+                if (name.charAt(name.length - 1) === '/') {
+                    if (this.isVistGroup) {
+                        this.skipGroupClick(name);
+                    } else {
+                        this.parentDir = this.currentDir;
+                        this.currentDir = this.currentDir + name;
+                        this.showTableData();
+                    }
+                } else {
+                    // 后续添加
+                    let _this = this;
+
+                    this.picLoading = true;
+                    this.picDialogVisible = true;
+                    let url = null;
+                    let data = {
+                        userId: userEntity.userId,
+                        objectname: this.currentDir + name
+                    };
+                    axios.post("/clouddisk/toHtml/toShow", data).then(function (response) {
+                        // console.log(response.data.data);
+                        url = response.data.data;
+                        console.log(url);
+                        //_this.picSrc = url;
+                        _this.picSrc = url;
+                        console.log(name.substr(name.indexOf('.') + 1));
+
+                    });
+                    //let url = "https://obs-laixingzhen-file01.obs.cn-north-4.myhuaweicloud.com/测试1/" + userEntity.userId + this.currentDir + name;
+                    _this.picLoading = false;
+                }
+            },
+            /**
+             * 群组文件路径跳转
+             */
+            skipGroupClick: function (name) {
+                this.groupPreDir = this.groupCurDir;
+                this.groupCurDir = this.groupCurDir + name;
+                this.getGroupFile();
+            },
+            /**
+             * 左侧导航栏点击事件
+             */
+            getFile: function () {
+                this.tableShow = true;
+                this.shareTableShow = false;
+                this.recycleBinTableShow = false;
+                this.userTableShow=false;
+                this.headRecycleVisible=false;
+                this.recycleTableShow=false;
+                this.headUserVisible=false;
+                let _this = this;
+                _this.headVisible = true;
+
+                let data = {
+                    userId: userEntity.userId,
+                    path: _this.currentDir
+                };
+                axios.post("/clouddisk/file/getFileList", data).then(function (response) {
+                    console.log(response.data.data);
+                    _this.tableData = response.data.data;
+                    _this.loading = false;
+                });
+            },
+            getDir: function () {
+                this.tableShow = true;
+                this.shareTableShow = false;
+                this.recycleBinTableShow = false;
+                this.userTableShow=false;
+                this.headRecycleVisible=false;
+                this.recycleTableShow=false;
+                this.headUserVisible=false;
+
+                let _this = this;
+                _this.headVisible = true;
+                let data = {
+                    userId: userEntity.userId,
+                    path: _this.currentDir
+                };
+                axios.post("/clouddisk/file/getDirList", data).then(function (response) {
+                    console.log(response.data.data);
+                    _this.tableData = response.data.data;
+                    _this.loading = false;
+                });
+            },
+
+            // 获取所有文件 回到首页用
+            getAllFile: function () {
+                this.multipleSelection = []; //（清空复选框选择情况)为了别的复选框选了我这不显示
+                this.tableShow = true;
+                this.shareTableShow = false;
+                this.recycleBinTableShow = false;
+                this.userTableShow=false;
+                this.headRecycleVisible=false;
+                this.headRecycleVisible=false;
+                this.recycleTableShow=false;
+                this.headUserVisible=false;
+
+                let _this = this;
+                _this.headVisible = true;
+                // 当前所在目录
+                _this.currentDir = "/";
+                // 上一级目录
+                _this.parentDir = "/";
+                _this.isVistGroup = false;
+                _this.isRoot = '';
+                _this.showTableData();
+            },
+
+            /**
+             * 获取群组文件的路径
+             */
+            // getGroupDir: function () {
+            //     let _this = this;
+            //     let data = {
+            //         departmentId: userEntity.departmentId
+            //     };
+            //     axios.post("/clouddisk/department/getDepById", data).then(function (response) {
+            //         let result = response.data;
+            //         if (result.code === 1) {
+            //             _this.groupCurDir += result.data + '/';
+            //             _this.groupPreDir += result.data + '/';
+            //         }
+            //     })
+            // },
+
+            /*----------用户管理模块------------*/
+            /*用户列表*/
+            getUser:function(){
+                this.isVistGroup = false;
+                this.tableShow=false;
+                this.headRecycleVisible=false;
+                this.headShareVisible=false;
+                this.shareTableShow=false;
+                this.recycleTableShow=false;
+                this.userTableShow=true;
+                this.headUserVisible = true;
+                let _this = this;
+                console.log("222222222222222222222");
+
+                $.ajax({
+                    url: "/clouddisk/user/getAllUsers",
+                    type: "post",
+                    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+                    data: {
+                        pageCount: _this.pageCountUser, //第一页
+                        pageSize: _this.pageSizeUser   //一页默认8条条数据
+                    },
+                    success: function (data) {
+                        if (data.code===1) {
+                            console.log("成功");
+                            _this.tableUserData = data.data.list;
+                            pageCountUser = data.data.pageCount;
+                            pageSizeUser = data.data.pageSize;
+                            _this.totalUser = data.data.total;
+                            console.log("data.data.pageSize"+data.data.pageSize);
+                            console.log("data.data.pageCount"+data.data.pageCount);
+                            //console.log(data.data.list);
+                            _this.loading = false;
+                        } else {
+                            console.log("失败");
+                        }
+                    },
+                    complete: function() {
+                        _this.headVisible = false;
+                    },
+                });
+
+
+
+            },
+            addUser:function(){
+                let _this = this;
+                let flag = true;
+                if (this.departmentId == null || this.userName == null || this.userRealname == null || this.userPwd == null || this.userMobile == null || this.userEmail == null){
+                    this.messageAlert("warning","表格数据不能为空");
+                    flag = false;
+                }
+                if (flag){
+                    let dId = this.departmentId;
+                    let uName = this.userName;
+                    let uRName = this.userRealname;
+                    let uPWd = this.userPwd;
+                    let uMobile = this.userMobile;
+                    let uEmail = this.userEmail;
+                    $.ajax({
+                        url:"/clouddisk/user/saveUser",
+                        type:"post",
+                        dataType:"JSON",
+                        contentType:"application/json;charset=UFT-8",
+                        data:JSON.stringify({
+                            departmentId:dId,
+                            userName:uName,
+                            userRealname:uRName,
+                            userPwd:uPWd,
+                            userMobile:uMobile,
+                            userEmail:uEmail
+                        }),
+                        success:function (data) {
+                            if (data.code==1){
+                                _this.addUserDialog = false;
+                                _this.messageAlert("success","添加成功");
+                               // _this.showTableData();
+                                _this.getUser();
+                            }else {
+                                _this.messageAlert("error","添加失败");
+                            }
+                        }
+                    })
+                }
+
+            },
+            addUserList:function(){
+
+            },
+            /*删除用户*/
+            deleteUser:function(){
+                let objs = this.multipleSelection;
+                // console.log(objs);
+                var userIds = [];
+                if (objs.length != 0){
+                    for (let i =0;i<objs.length;i++){
+                        userIds.push(objs[i].userId);
+                    }
+                    console.log(userIds+"1111");
+                }
+                let _this = this;
+                this.deleteUserDialogVisible=false;
+                $.ajax({
+                    url:"/clouddisk/user/deleteUsers",
+                    type:"post",
+                    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+                    traditional:true,
+                    data:{
+                        ids:userIds
+                    },
+                    success:function (data) {
+                        if (data.code==1){
+                            _this.messageAlert("success","删除成功");
+                            _this.showTableData(_this.nowDirObj.id);
+                            _this.getUser();
+                        }else {
+                            _this.messageAlert("error","删除失败")
+                        }
+
+                    }
+                })
+            },
+
+
+            /*我的分享列表*/
+            getShared: function () {
+                this.multipleSelection = []; //（清空复选框选择情况)为了别的复选框选了我这不显示
+                this.tableShow=false;
+                this.headUserVisible=false;
+                this.headRecycleVisible=false;
+                this.userTableShow=false;
+                this.recycleTableShow=false;
+                this.shareTableShow=true;
+                this.headShareVisible = true;
+                this.isVistGroup = false;
+                let _this = this;
+                $.ajax({
+                    url: "/clouddisk/share/getShareRecord",
+                    type: "post",
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    data: {
+                        userId: userEntity.userId,
+                        pageCount: _this.pageCount, //第一页
+                        pageSize: _this.pageSize   //一页默认8条数据
+                    },
+                    success: function (data) {
+                        if (data.code == 1) {
+
+                            _this.tableShareData = data.data.list;
+                            pageCount = data.data.pageCount;
+                            pageSize = data.data.pageSize;
+                            _this.total = data.data.total;
+
+                            _this.loading = false;
+                            console.log("分页的相关内容："+data.data.total);
+                        } else {
+                            //_this.tableData = [];
+                        }
+                    },
+                    complete: function () {
+                        _this.headVisible = false;
+                    },
+                });
+
+            },
+            /*分享列表的分页相关函数*/
+            /*监听分页尺寸变化*/
+            handleSizeChangeShare(newSize){
+                console.log(newSize);
+                this.pageSize = newSize;
+                this.getShared();
+            },
+            /*监听页码变化*/
+            handleCurrentChangeShare(newPage){
+                console.log(newPage);
+                this.pageCount=newPage;
+                this.getShared();
+            },
+            /*监听分页尺寸变化*/
+            handleSizeChangeUser(newSizes){
+                console.log(newSizes);
+                this.pageSizeUser = newSizes;
+                this.getUser();
+            },
+            /*监听页码变化*/
+            handleCurrentChangeUser(newPages){
+                console.log("变变"+newPages);
+                this.pageCountUser=newPages;
+                this.getUser();
+            },
+            /*取消分享链接*/
+            deleteShare: function () {
+                var shareIds = [];
+                for (var i = 0; i < this.multipleSelection.length; i++) {
+                    shareIds.push(this.multipleSelection[i].shareId);
+                }
+                let _this = this;
+                $.ajax({
+                    url: "/clouddisk/share/deleteById",
+                    type: "post",
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    traditional: true,
+                    data: {
+                        shareIds: shareIds
+                    },
+                    success: function (data) {
+                        console.log(data);
+                        if (data.code == 1) {
+                            _this.messageAlert("success", "取消成功");
+                        } else if (data.code == -1) {
+                            _this.messageAlert("error", "取消失败")
+                        }
+                    },
+                    complete: function () {
+                        _this.headVisible = false;
+                    },
+                });
+                setTimeout(function () {
+                    _this.getShared();
+                }, 1000);
+
+            },
+            //修改分享链接
+            updateShare: function () {
+                let _this = this;
+                console.log("shareUpdateFileNow:" + _this.shareUpdateFileNow);
+                console.log(_this.shareTime);
+                console.log("shareId" + _this.multipleSelection[0].shareId);
+
+                $.ajax({
+                    url: "/clouddisk/share/updateShare",
+                    type: "post",
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    data: {
+                        shareId: _this.multipleSelection[0].shareId,
+                        shareTime: _this.shareTime
+                    },
+                    success: function (data) {
+                        console.log(data);
+                        if (data.code == 1) {
+                            _this.messageAlert("success", "修改成功");
+                        } else if (data.code == -1) {
+                            _this.messageAlert("error", "修改失败")
+                        }
+                    },
+                    complete: function () {
+                        _this.headVisible = false;
+                    },
+                });
+                setTimeout(function () {
+                    _this.getShared();
+                }, 1000);
+                _this.shareUpdateVisble = false;
+            },
+            /*获取回收站里的文件*/
+            getDeleted: function () {
+                this.isVistGroup = false;
+                this.tableShow=false;
+                this.headUserVisible=false;
+                this.headRecycleVisible=true;
+                this.userTableShow=false;
+                this.recycleTableShow=true;
+                this.shareTableShow=false;
+                this.headShareVisible = false;
+                this.multipleSelection = []; //（清空复选框选择情况)为了别的复选框选了我这不显示
+
+                let _this = this;
+                $.ajax({
+                    url: "/clouddisk/RecycleBin/listUserDeleteFile",
+                    type: "post",
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    async: true,
+                    data: {
+                        userId: userEntity.userId,
+                        path: this.recyclebincurrentDir
+                    },
+                    success: function (data) {
+                        if (data.code == 1) {
+                            _this.recycleBinTableData = data.data;
+                            console.log(data.data);
+                            _this.loading = false;
+                        } else if (data.code == -1 && data.message == "当前用户无删除文件") {
+                            _this.recycleBinTableData = [];
+                            console.log("当前用户无删除文件！");
+                        } else {
+                            console.log("无法查找！");
+                        }
+                    },
+                    complete: function () {
+                        _this.headVisible = false;
+                    },
+                });
+            },
+            /*回收站返回上一级*/
+            RcyclebinToPre: function () {
+                if (this.recyclebincurrentDir == "/") {
+                    this.getDeleted();
+                    this.recyclebinparentDir = "/";
+                }
+                var pre = this.recyclebinparentDir;
+                this.recyclebincurrentDir = this.recyclebinparentDir;
+                this.getDeleted();
+                var s = pre.lastIndexOf("/");
+                this.recyclebinparentDir = pre.substr(0, pre.lastIndexOf("/", s - 1) + 1);
+                console.log("当前路径" + this.recyclebincurrentDir);
+                console.log("上一级路径" + this.recyclebinparentDir);
+            },
+
+            DeleteClick: function (name) {
+                // 如果是目录
+                if (name.charAt(name.length - 1) === '/') {
+                    this.recyclebinparentDir = this.recyclebincurrentDir;
+                    this.recyclebincurrentDir = this.recyclebincurrentDir + name;
+                    this.getDeleted();
+                } else {
+
+                }
+            },
+            /*恢复文件*/
+            recycleFile: function () {
+                let _this = this;
+                let fileIds = "";
+                let curentSelect = _this.multipleSelection;
+                for (let i = 0; i < curentSelect.length; i++) {
+                    if (curentSelect.length == 1)
+                        fileIds = curentSelect[0].fileId;
+                    else
+                        fileIds = curentSelect[i].fileId + "," + fileIds;
+                }
+                console.log(fileIds);
+                $.ajax({
+                    url: "/clouddisk/RecycleBin/recycleFile",
+                    type: "post",
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    async: true,
+                    data: {
+                        userId: userEntity.userId,
+                        fileIds: fileIds
+                    },
+                    success: function (datas) {
+                        if (datas.code == 1 && datas.data == "当前内容可能已经不存在") {
+                            _this.messageAlert("warning", "当前内容可能已经不存在");
+                        } else if (datas.code == 1 && datas.data == "文件已恢复") {
+                            _this.messageAlert("success", "文件已恢复");
+                        } else {
+                            _this.messageAlert("error", "文件恢复失败")
+                        }
+                    }
+                });
+                setTimeout(function () {
+                    _this.getDeleted();
+                }, 2000);
+            },
+            /*彻底删除文件*/
+            realDelete: function () {
+                let _this = this;
+                let fileIds = "";
+                let curentSelect = _this.multipleSelection;
+                for (let i = 0; i < curentSelect.length; i++) {
+                    if (curentSelect.length == 1)
+                        fileIds = curentSelect[0].fileId;
+                    else
+                        fileIds = curentSelect[i].fileId + "," + fileIds;
+                }
+                console.log(fileIds);
+                $.ajax({
+                    url: "/clouddisk/RecycleBin/thoughDelete",
+                    type: "post",
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    async: true,
+                    data: {
+                        userId: userEntity.userId,
+                        fileIds: fileIds
+                    },
+                    success: function (datas) {
+                        if (datas.code == 1 && datas.data == "删除成功") {
+                            _this.messageAlert("success", "删除成功");
+                        } else if (datas.code == -1 && datas.data.message == "文件删除失败") {
+                            _this.messageAlert("error", "文件删除失败")
+                        } else if (datas.code == -1 && datas.data.message == "删除失败") {
+                            _this.messageAlert("error", "删除失败")
+                        }
+                    }
+                });
+                setTimeout(function () {
+                    _this.getDeleted();
+                }, 2000);
+            },
+            /*一键清理回收站*/
+            cleanRecycleBin: function () {
+                let _this = this;
+                $.ajax({
+                    url: "/clouddisk/RecycleBin/cleanRecycleBin",
+                    type: "post",
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    data: {
+                        userId: userEntity.userId
+                    },
+                    success: function (datas) {
+                        if (datas.code == 1 && datas.data == "回收站已清空") {
+                            _this.messageAlert("success", "回收站已清空");
+                        } else {
+                            _this.messageAlert("error", "回收站清空失败！");
+                        }
+                    }
+                });
+                setTimeout(function () {
+                    _this.getDeleted();
+                }, 2000);
+
+            },
+            iconClass: function (name) {
+                if (name.charAt(name.length - 1) == '/') {
+                    return 'el-icon-folder';
+                }
+                switch (name.substr(name.indexOf('.') + 1)) {
+                    case 'txt' :
+                    case 'pdf':
+                        return "el-icon-document";
+                        break;
+                    case 'video':
+                        return "el-icon-video-camera";
+                        break;
+                    case 'jpg':
+                        return "el-icon-picture-outline";
+                        break;
+                    default:
+                        return "el-icon-paperclip";
+                }
+            },
+            /**
+             * 顶层导航栏点击事件
+             */
+            topnavhandleSelect: function () {
+
+            },
+            /**
+             * 搜索栏点击搜索事件
+             */
+            searchFile: function () {
+                if (this.searchInput === null || this.searchInput.trim() === '') {
+                    return;
+                }
+                this.loading = true;
+                let val = this.searchInput.trim();
+                let _this = this;
+                $.ajax({
+                    url: "/clouddisk/file/selectFile",
+                    type: "post",
+                    data: JSON.stringify({
+                        userId: userEntity.userId,
+                        path: _this.currentDir,
+                        keywords: _this.searchInput
+                    }),
+                    headers: {'Content-Type': 'application/json;charset=utf8'},
+                    dataType: "JSON",
+                    beforeSend: function (request) {
+                        request.setRequestHeader("token", sessionStorage.getItem("token"));
+                    },
+                    success: function (datas) {
+                        _this.tableData = datas.data;
+                        _this.loading = false;
+                    }
+                });
+            },
+            /**
+             * 获取复制文件夹列表
+             */
+            getCopyDir: function () {
+                let _this = this;
+                _this.copyLoading = true;
+                let data = {
+                    userId: userEntity.userId,
+                    path: _this.curCopyPath
+                };
+                axios.post("/clouddisk/file/getDirList", data).then(function (response) {
+                    // console.log(response.data.data);
+                    _this.copyTabData = response.data.data;
+                    _this.copyLoading = false;
+                });
+            },
+            /**
+             * 复制弹窗返回上一级
+             */
+            copyBack: function () {
+                if (this.preCopyPath == "/") {
+                    this.getCopyDir();
+                    this.preCopyPath = "/";
+                }
+                var pre = this.preCopyPath;
+                this.curCopyPath = pre;
+                this.getCopyDir();
+                var s = pre.lastIndexOf("/");
+                this.preCopyPath = pre.substr(0, pre.lastIndexOf("/", s - 1) + 1);
+            },
+            /**
+             * 复制弹窗点击目录
+             */
+            copyNext: function (name) {
+                this.preCopyPath = this.curCopyPath;
+                this.curCopyPath = this.curCopyPath + name;
+                this.getCopyDir();
+            },
+            /**
+             * 计算后台传递的文件大小, 并拼接上单位(G,M,KB,B) 后台传递的数据单位是KB
+             */
+            calcFileSize: function (row, column) {
+                let size = row.fileSize;
+                if (size == null) {
+                    size = "-";
+                } else {
+                    let KB = size / 1024;
+                    let MB = size / 1024 / 1024;
+                    let GB = size / 1024 / 1024 / 1024;
+                    if (size < 1)
+                        size = (size * 1024).toFixed(0) + "B";
+                    else if (KB > 1 && KB < 1024)
+                        size = KB.toFixed(2) + "KB";
+                    else if (MB > 1 && MB < 1024)
+                        size = MB.toFixed(2) + "M";
+                    else if (GB > 1)
+                        size = GB.toFixed(2) + "G";
+                }
+                return size;
+            },
+            /**
+             * 封装弹出提示
+             */
+            messageAlert: function (type, message) {
+                if (type === "simple") {
+                    this.$message({
+                        showClose: true,
+                        message: message
+                    });
+                } else if (type === "success") {
+                    this.$message({
+                        showClose: true,
+                        message: message,
+                        type: type
+                    });
+                } else if (type === "warning") {
+                    this.$message({
+                        showClose: true,
+                        message: message,
+                        type: type
+                    });
+                } else if (type === "error") {
+                    this.$message({
+                        showClose: true,
+                        message: message,
+                        type: type
+                    });
+                }
+            },
+            /**
+             * 用户创建新的文件夹
+             */
+            createNewDir: function () {
+                let _this = this;
+                let flag = true;
+                if (this.createDirValue == null || this.createDirValue.trim() === "") {
+                    this.messageAlert("warning", "文件夹名不为空");
+                }
+                console.log(this.createDirValue);
+                console.log(this.currentDir);
+                if (flag) {
+                    $.ajax({
+                        url: "/clouddisk/file/createNewDir",
+                        type: "post",
+                        contentType: "application/json;charset=UTF-8",
+                        data: JSON.stringify({
+                            userId: userEntity.userId,
+                            path: _this.currentDir,
+                            dirName: _this.createDirValue
+                        }),
+                        dataType: "json",
+                        success: function (datas) {
+                            _this.createDirDialogVisible = false;
+                            _this.createDirValue = "";
+                            if (datas.code === 1) {
+                                _this.messageAlert("success", "文件夹创建成功");
+                                _this.showTableData();
+                            } else if (datas.code === 3003) {
+                                _this.messageAlert("error", "文件夹已存在");
+                            } else {
+                                _this.messageAlert("error", "文件夹创建失败");
+                            }
+                        }
+                    })
+                }
+            },
+            /**
+             * 创建新的群组文件夹
+             */
+            createNewGroupDir: function () {
+                let _this = this;
+                let flag = true;
+                if (this.createDirValue == null || this.createDirValue.trim() === "") {
+                    this.messageAlert("warning", "文件夹名不为空");
+                }
+                console.log(this.createDirValue);
+                console.log(this.currentDir);
+                if (flag) {
+                    $.ajax({
+                        url: "/clouddisk/file/createNewGroupDir",
+                        type: "post",
+                        contentType: "application/json;charset=UTF-8",
+                        data: JSON.stringify({
+                            userId: userEntity.userId,
+                            path: _this.groupCurDir,
+                            dirName: _this.createDirValue
+                        }),
+                        dataType: "json",
+                        success: function (datas) {
+                            _this.createGroupDirDialogVisible = false;
+                            _this.createDirValue = "";
+                            if (datas.code === 1) {
+                                _this.messageAlert("success", "文件夹创建成功");
+                                _this.getGroupFile();
+                            } else if (datas.code === 3003) {
+                                _this.messageAlert("error", "文件夹已存在");
+                            } else {
+                                _this.messageAlert("error", "文件夹创建失败");
+                            }
+                        }
+                    })
+                }
+            },
+            /**
+             * 搜索框清空事件
+             */
+            clearSearchInput() {
+                this.showTableData(0);
+            },
+            /**
+             * 表格中的复选框选择事件
+             */
+            handleSelectionChange: function (val) {
+                this.multipleSelection = val;
+            },
+            /**
+             * 复制表格中的复选框选择事件
+             */
+            copyHandleSelectionChange: function (val) {
+                this.copyMultipleSelection = val;
+            },
+            /**
+             * 点击重名名弹出窗口
+             */
+            showrRenameDialog: function () {
+                this.updateOldNameValue = this.multipleSelection[0].fileName;
+                this.updateNameDialogVisible = true;
+            },
+            /**
+             * 用户修改文件或者文件夹名称
+             */
+            updateOldNameMethod: function () {
+                //复选框选中的对象
+                let _this = this;
+                let flag = true;
+                if (this.updateOldNameValue == null || this.updateOldNameValue.trim() === "") {
+                    this.messageAlert("warning", "名称不为空");
+                    flag = false;
+                }
+
+                for (let i = 0; i < this.tableData.length; i++) {
+                    //改文件夹名
+                    //文件夹 name.charAt(name.length - 1) === '/'
+                    let name = this.multipleSelection[0].fileName;
+                    if (name.charAt(name.length - 1) === '/' && this.updateOldNameValue === this.tableData[i].fileName) {
+                        this.messageAlert("warning", "文件夹名已存在");
+                        flag = false;
+                        break;
+                    }
+                    //改文件名
+                    else if (name.charAt(name.length - 1) !== '/' && this.updateOldNameValue === this.tableData[i].fileName) {
+                        this.messageAlert("warning", "文件名已存在");
+                        flag = false;
+                        break;
+                    }
+                }
+                if (flag) {
+                    let path = _this.currentDir;
+                    let obj = userEntity.userId + path + this.multipleSelection[0].fileName;
+                    let file = userEntity.userId + path + this.updateOldNameValue;
+                    $.ajax({
+                        url: "/clouddisk/file/setFileName",
+                        type: "post",
+                        dataType: "JSON",
+                        contentType: "application/json;charset=UTF-8",
+                        data: JSON.stringify({
+                            filePath: obj, fileNewPath: file
+                        }),
+                        success: function (datas) {
+                            _this.updateNameDialogVisible = false;
+                            if (datas.code === 1) {
+                                _this.messageAlert("success", "重命名成功");
+                                _this.showTableData(_this.nowDirObj.id);
+                            } else {
+                                alert("修改失败")
+                            }
+                        }
+                    })
+                }
+            },
+            /**
+             * 用户移动文件或者文件夹名称
+             */
+            moveMethod: function () {
+                //复选框选中的对象
+                let _this = this;
+                let flag = true;
+
+                for (let i = 0; i < this.copyTabData.length; i++) {
+                    //改文件夹名
+                    //文件夹 name.charAt(name.length - 1) === '/'
+                    let name = this.multipleSelection[0].fileName;
+                    if (name.charAt(name.length - 1) === '/' && name === this.copyTabData[i].fileName) {
+                        this.messageAlert("warning", "文件夹名已存在");
+                        flag = false;
+                        break;
+                    }
+                    //改文件名
+                    else if (name.charAt(name.length - 1) !== '/' && name === this.copyTabData[i].fileName) {
+                        this.messageAlert("warning", "文件名已存在");
+                        flag = false;
+                        break;
+                    }
+                }
+                if (flag) {
+                    let path = _this.currentDir;
+                    let path1 = _this.curCopyPath;
+                    console.log(path);
+                    console.log(path1);
+                    let obj = userEntity.userId + path + this.multipleSelection[0].fileName;
+                    let file = userEntity.userId + path1 + this.multipleSelection[0].fileName;
+                    $.ajax({
+                        url: "/clouddisk/file/setFileName",
+                        type: "post",
+                        dataType: "JSON",
+                        contentType: "application/json;charset=UTF-8",
+                        data: JSON.stringify({
+                            filePath: obj, fileNewPath: file
+                        }),
+                        success: function (datas) {
+                            _this.moveDialogVisible = false;
+                            if (datas.code === 1) {
+                                _this.messageAlert("success", "移动成功");
+                                _this.showTableData(_this.nowDirObj.id);
+                            } else {
+                                _this.messageAlert("error", "移动失败");
+                            }
+                        }
+                    })
+                }
+            },
+            //多个文件下载
+            downloadFile() {
+                let objs = this.multipleSelection;
+                var fileIds = [];
+                if (objs.length != 0) {
+                    for (let i = 0; i < objs.length; i++) {
+                        fileIds.push(objs[i].fileId);//拼凑文件id为一个数组
+                    }
+                    console.log(fileIds + "22222222222");
+                }
+                let _this = this;
+                $.ajax({
+                    url: "/clouddisk/file/downloadFileByIds",
+                    type: "get",
+                    traditional: true,//通过设置traditional 为true阻止深度序列化
+                    data: {
+                        fileIds: fileIds
+                    },
+                    dataType: "json",
+                    success: function (datas) {
+                        console.log(datas);
+                        if (datas.code === 1) {
+                            _this.messageAlert("success", "下载成功");
+                        } else {
+                            _this.messageAlert("error", "下载失败");
+                        }
+                    }
+                })
+
+            },
+            /**
+             * 删除文件或目录(已完成）
+             */
+            deleteMethod: function () {
+                let objs = this.multipleSelection;
+                var fileIds = [];
+                if (objs.length != 0) {
+                    for (let i = 0; i < objs.length; i++) {
+                        fileIds.push(objs[i].fileId);//拼凑文件id为一个数组
+                    }
+                    console.log(fileIds + "22222222222");
+                }
+                this.deleteDialogVisible = false;
+                let _this = this;
+                $.ajax({
+                    url: "/clouddisk/file/deleteFiles",
+                    //contentType: "application/x-www-form-urlencoded",
+                    type: "get",
+                    traditional: true,//通过设置traditional 为true阻止深度序列化
+                    data: {
+                        userId: userEntity.userId,
+                        fileIds: fileIds
+                    },
+                    dataType: "json",
+                    success: function (datas) {
+                        _this.updateNameDialogVisible = false;
+                        console.log(datas);
+                        if (datas.code === 1) {
+                            _this.messageAlert("success", "删除成功");
+                            _this.showTableData(_this.nowDirObj.id);
+                        } else {
+                            _this.messageAlert("error", "删除失败");
+                        }
+                    }
+                })
+            },
+
+            /**
+             * 删除群组文件或目录
+             */
+            deleteGroupMethod: function () {
+                let objs = this.multipleSelection;
+                var fileIds = [];
+                if (objs.length != 0) {
+                    for (let i = 0; i < objs.length; i++) {
+                        fileIds.push(objs[i].fileId);//拼凑文件id为一个数组
+                    }
+                    console.log(fileIds + "22222222222");
+                }
+                this.deleteGroupDialogVisible = false;
+                let _this = this;
+                $.ajax({
+                    url: "/clouddisk/file/deleteGroupFiles",
+                    //contentType: "application/x-www-form-urlencoded",
+                    type: "get",
+                    traditional: true,//通过设置traditional 为true阻止深度序列化
+                    data: {
+                        fileIds: fileIds
+                    },
+                    dataType: "json",
+                    success: function (datas) {
+                        _this.updateNameDialogVisible = false;
+                        console.log(datas);
+                        if (datas.code === 1) {
+                            _this.messageAlert("success", "删除成功");
+                            _this.getGroupFile();
+                        } else {
+                            _this.messageAlert("error", "删除失败");
+                        }
+                    }
+                })
+            },
+            /**
+             * 获取群组文件
+             */
+            getGroupFile: function () {
+                this.tableShow = true;
+                this.shareTableShow = false;
+                let _this = this;
+                this.recycleBinTableShow = false;
+                this.userTableShow=false;
+                this.headRecycleVisible=false;
+                this.headUserVisible=false;
+                this.headRecycleVisible=false;
+                this.recycleTableShow=false;
+                this.headVisible=true;
+                if (userEntity.userPart === 0) {
+                    _this.isRoot = 'none';
+                }
+                _this.isVistGroup = true;
+                _this.loading = true;
+                // _this.getGroupDir();
+                let data = {
+                    userId: userEntity.userId,
+                    path: _this.groupCurDir
+                };
+                axios.post("/clouddisk/file/getAllGroupFile", data).then(function (response) {
+                    _this.tableData = response.data.data;
+                });
+                _this.loading = false;
+            },
+            /**
+             * 弹出复制到的弹窗
+             */
+            showCopyDialog: function () {
+                let _this = this;
+                _this.copyLoading = true;
+                let data = {
+                    userId: userEntity.userId,
+                    path: _this.curCopyPath
+                };
+                axios.post("/clouddisk/file/getDirList", data).then(function (response) {
+                    _this.copyTabData = response.data.data;
+                    _this.copyLoading = false;
+                });
+                this.copyDialogVisible = true;
+            },
+            /**
+             * 弹出移动到的弹窗
+             */
+            showMoveDialog: function () {
+                let _this = this;
+                _this.loading = true;
+                let data = {
+                    userId: userEntity.userId,
+                    path: _this.curCopyPath
+                };
+                axios.post("/clouddisk/file/getDirList", data).then(function (response) {
+                    _this.copyTabData = response.data.data;
+                    _this.loading = false;
+                });
+                this.moveDialogVisible = true;
+            },
+            /**
+             * 当前选中的节点目录
+             */
+            currentNode: function (data, node) {
+                this.currentSelectTreeNode = data;
+            },
+            copyToLocal: function () {
+                let _this = this;
+                // console.log(_this.curCopyPath);
+                // 根据路径查ID
+                let data = {
+                    userId: userEntity.userId,
+                    path: _this.curCopyPath
+                };
+                axios.post("/clouddisk/file/getPathId", data).then(function (response) {
+                    // console.log(response.data.data);
+                    let result = response.data;
+                    if (result.code === 1) {
+                        let obj = _this.multipleSelection;
+                        if (obj.length > 3) {
+                            _this.messageAlert("error", "文件复制功能，暂支持3个文件同时操作")
+                        } else {
+                            let fileName = _this.multipleSelection[0].fileName;
+                            let sourceIds = [];
+                            if (obj.length > 0) {
+                                for (let i = 0; i < obj.length; i++) {
+                                    sourceIds.push(obj[i].fileId);
+                                }
+                            }
+                            // let sourceId = _this.multipleSelection[0].fileId;
+                            let data = {
+                                userId: userEntity.userId,
+                                sourceIds: sourceIds,
+                                destId: result.data
+                            };
+                            _this.copyLoading = true;
+                            _this.copyBtn = false;
+                            // console.log(data);
+                            _this.doCopy(data);
+                            // }
+                            _this.copyLoading = false;
+                            _this.copyBtn = true;
+                            this.copyDialogVisible = false;
+                        }
+                    } else {
+                        _this.messageAlert("error", "操作失败");
+                    }
+                })
+            },
+            /**
+             * 复制到具体操作的方法
+             */
+            copyToMethod: function () {
+                let _this = this;
+                if (_this.multipleSelection.length > 1 || _this.copyMultipleSelection.length > 1) {
+                    _this.messageAlert("error", "文件复制暂支持单个文件操作")
+                } else {
+                    // for (let i = 0; i < _this.multipleSelection.length; i++) {
+                    let fileName = _this.multipleSelection[0].fileName;
+                    if (fileName.charAt(fileName.length - 1) === '/') {
+                        _this.messageAlert("error", "文件复制暂不支持文件夹")
+                    } else {
+                        _this.copyLoading = true;
+                        let sourceId = _this.multipleSelection[0].fileId;
+                        let destId = _this.copyMultipleSelection[0].fileId;
+                        let data = {
+                            userId: userEntity.userId,
+                            sourceId: sourceId,
+                            destId: destId
+                        };
+                        this.doCopy(data);
+                    }
+                    _this.copyLoading = false;
+                    // }
+                    this.copyDialogVisible = false;
+                }
+            },
+            doCopy: function (data) {
+                let _this = this;
+                _this.messageAlert("success", "开始复制");
+                // this.copyLoading = true;
+                axios.post("/clouddisk/file/copyFile", data).then(function (response) {
+                    let reData = response.data;
+                    switch (reData.code) {
+                        case -1:
+                            _this.messageAlert("error", "文件信息错误");
+                            break;
+                        case -2:
+                            _this.messageAlert("error", "文件在该目录下已存在相同的文件名 请修改后重试");
+                            break;
+                        default:
+                            _this.messageAlert("success", "文件复制成功");
+                            window.setTimeout(function () {
+                                location.reload();
+                            }, 1500);
+                            break;
+                    }
+                });
+            },
+            /**
+             * 移动到具体操作的方法
+             */
+            moveToMethod: function () {
+                if (this.currentSelectTreeNode.id == null) {
+                    this.messageAlert("warning", "未选择目录")
+                } else {
+                    let _this = this;
+                    const p = new Promise(function (resolve, reject) {
+                        setTimeout(() => {
+                            $.ajax({
+                                url: "/userdirectory/getdirectorys",
+                                type: "get",
+                                data: {id: _this.currentSelectTreeNode.id},
+                                dataType: "json",
+                                success: function (datas) {
+                                    let result = datas.data;
+                                    outer: for (let i = 0; i < result.length; i++) {
+                                        let selects = _this.multipleSelection;
+                                        for (let j = 0; j < selects.length; j++) {
+                                            if (result[i].name == selects[j].name) {
+                                                _this.messageAlert("error", "该目录下已存在相同的文件名或文件夹名, 请修改后重试");
+                                                reject();
+                                                break outer;
+                                            }
+                                        }
+                                    }
+                                    resolve();
+                                }
+                            });
+                        }, 1000);
+                    });
+                    p.then(() => {
+                        //指定移动的目录id
+                        let targetDirId = this.currentSelectTreeNode.id;
+                        //当前选中的多个对象
+                        let selects = this.multipleSelection;
+                        let dirIds = [];
+                        let fileIds = [];
+                        for (let i = 0; i < selects.length; i++) {
+                            if (selects[i].fileType == null) {
+                                dirIds.push(selects[i].id);
+                            } else {
+                                fileIds.push(selects[i].id)
+                            }
+                        }
+                        $.ajax({
+                            url: "/userdirectory/moveById",
+                            type: "post",
+                            data: {targetDirId: targetDirId, dirIds: dirIds, fileIds: fileIds},
+                            dataType: "json",
+                            success: function (datas) {
+                                if (datas.result == "ok") {
+                                    _this.showTableData(_this.nowDirObj.id);
+                                    _this.messageAlert("success", "移动成功")
+                                } else {
+                                    _this.messageAlert("warning", "移动失败")
+                                }
+                            }
+                        })
+                    })
+                }
+                this.moveDialogVisible = false;
+            },
+            /**
+             * 文件上传相关函数------------------=================--------------------
+             */
+            /**
+             * 移除文件列表中的文件时的事件
+             */
+            handleRemove: function (file, fileList) {
+                //console.log(file, fileList);
+                for (let i = 0; i < this.uploadFileProgress.length; i++) {
+                    if (file.uid == this.uploadFileProgress[i].uid) {
+                        this.uploadFileProgress.splice(i--, 1);
+                        break;
+                    }
+                }
+                for (let i = 0; i < this.fileList.length; i++) {
+                    if (file.uid == this.fileList[i].uid) {
+                        this.fileList.splice(i--, 1);
+                        break;
+                    }
+                }
+            },
+            /**
+             * 点击文件列表中的文件时的事件
+             */
+            handlePreview: function (file) {
+                //console.log(file);
+            },
+            /**
+             * 文件超出最大上传个数时的事件
+             */
+            handleExceed(files, fileList) {
+                this.$message.warning(`当前限制选择 3 个文件，本次选择了 ${files.length} 个文件，共选择了 ${files.length + fileList.length} 个文件`);
+            },
+            /**
+             * 文件上传前执行的事件
+             */
+            beforeUpload() {
+                let _this = this;
+                let countSize = 0;
+                for (let i = 0; i < this.fileList.length; i++) {
+                    let file = this.fileList[i];
+                    if (file.size > 1 * 1024 * 1024 * 1024) {
+                        this.messageAlert("error", "单个文件超过了1G");
+                        return false;
+                    }
+                    countSize += file.size;
+                }
+                if (countSize > 2 * 1024 * 1024 * 1024) {
+                    this.messageAlert("error", "总文件大小超过了2G");
+                    return false;
+                }
+                return true;
+            },
+            /**
+             * 文件状态改变时执行的事件, 给fileList赋值
+             */
+            handleChange(file, fileList) {
+                let _this = this;
+                this.uploadButtonLoading = true;
+                //计算MD5
+                const p = new Promise(function (resolve, reject) {
+                    _this.getFileMD5(file);
+                    let timer = setInterval(() => {
+                        if (file.md5 != null) {
+                            resolve("MD5计算完成");
+                            clearInterval(timer);
+                        }
+                    }, 500);
+                });
+                p.then(function (result) {
+                    //console.log(result);
+                    if (file.md5 != null) {
+                        _this.fileList = fileList;
+                        _this.uploadFileProgress.push({
+                            uid: file.uid,
+                            name: file.name,
+                            progress: 0
+                        });
+                        _this.uploadButtonLoading = false;
+                    } else {
+                        //将官方的文件列表上传完成的文件删除
+                        for (let j = 0; j < _this.$refs.myupload._data.uploadFiles.length; j++) {
+                            if (_this.$refs.myupload._data.uploadFiles[j].uid == file.uid) {
+                                _this.$refs.myupload._data.uploadFiles.splice(j--, 1);
+                                break;
+                            }
+                        }
+                        _this.uploadButtonLoading = false;
+                        _this.messageAlert("error", "解析[" + file.name + "]文件超时")
+                    }
+
+                });
+
+            },
+            /**
+             * 文件上传
+             */
+            submitUpload: function () {
+                let before = this.beforeUpload();
+                if (!before) return;
+                let _this = this;
+                _this.uploadButtonResolve = true;
+                const p = new Promise(function (resolve, reject) {
+                    let k = 0;
+                    let lengths = _this.fileList.length;
+                    //如果数据库有此文件则不进行上传,直接数据库加记录就ok了(所谓秒传?)
+                    for (let i = _this.fileList.length - 1; i >= 0; i--) {
+                        $.ajax({
+                            url: "/file/findByMD5",
+                            type: "post",
+                            data: {
+                                md5: _this.fileList[i].md5,
+                                userId: userEntity.userId,
+                                fileName: _this.fileList[i].name,
+                                fileSize: _this.fileList[i].size
+                            },
+                            dataType: 'json',
+                            success: function (datas) {
+                                if (datas.success === "fulled") {
+                                    _this.messageAlert("error", "您的空间不足, 请充值会员扩容");
+                                    reject();
+                                    return;
+                                }
+                                //console.log(datas.result)
+                                if (datas.result == "ok") {
+                                    //console.log(_this.$refs.myupload._data);
+                                    //将官方的文件列表上传完成的文件删除
+                                    for (let j = 0; j < _this.$refs.myupload._data.uploadFiles.length; j++) {
+                                        if (_this.$refs.myupload._data.uploadFiles[j].uid == _this.fileList.uid) {
+                                            _this.$refs.myupload._data.uploadFiles.splice(j--, 1);
+                                            break;
+                                        }
+                                    }
+
+                                    //进度条显示
+                                    for (let j = 0; j < _this.uploadFileProgress.length; j++) {
+                                        if (_this.fileList[i].uid == _this.uploadFileProgress[j].uid) {
+                                            _this.uploadFileProgress[j].progress = 100;
+                                            break;
+                                        }
+                                    }
+
+                                    //刷新表格信息
+                                    _this.showTableData(_this.nowDirObj.id);
+                                    _this.messageAlert("success", _this.fileList[i].name + "文件上传成功");
+                                    //删除上传成功的文件
+                                    _this.fileList.splice(i, 1);
+                                }
+                                k++;
+                            }
+                        });
+                        let timer = setInterval(() => {
+                            if (k == lengths) {
+                                resolve();
+                                clearInterval(timer);
+                            }
+                        }, 500);
+                    }
+                });
+                p.then(function () {
+                    //console.log("上传文件了...");
+                    //console.log(this.fileList);
+                    let fileLists = _this.fileList;
+                    for (let i = 0; i < fileLists.length; i++) {
+                        if (fileLists[i].status == "ready") {
+                            _this.sliceFileUpload(fileLists[i]);
+                        }
+                    }
+                    let tm = setInterval(function () {
+                        if (_this.$refs.myupload._data.uploadFiles.length == 0) {
+                            _this.uploadButtonResolve = false;
+                            clearInterval(tm);
+                        }
+                    }, 700);
+                });
+                //this.$refs.myupload.submit();
+            },
+            /**
+             * 分片上传
+             */
+            sliceFileUpload(fileList) {
+                let _this = this;
+                let file = fileList.raw;
+                let maxSize = 20 * 1024 * 1024; //一个分片20M
+                //上传时携带的其他参数  chunk分片
+                let fileSize = file.size;
+                let chunks = parseInt(fileSize / maxSize) + 1;
+                let count = 0;
+                fileList.partList = [];
+                //普通上传分片上传
+                if (chunks == 1) {
+                    let formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('fileName', file.name);
+                    formData.append('guid', file.uid);
+                    formData.append('md5', fileList.md5);
+                    formData.append('udid', this.nowDirObj.id);
+                    $.ajax({
+                        url: "/file/uploadSimple",
+                        type: "post",
+                        data: formData,
+                        cache: false,
+                        async: true,
+                        dataType: 'json',
+                        contentType: false, //不设置内容类型
+                        processData: false, //不处理数据
+                        xhr: function () { //获取ajaxSettings中的xhr对象，为它的upload属性绑定progress事件的处理函数
+                            let myXhr = $.ajaxSettings.xhr();
+                            if (myXhr.upload) { //检查upload属性是否存在
+                                //绑定progress事件的回调函数
+                                myXhr.upload.addEventListener('progress', function (e) {
+                                    let curr = e.loaded;
+                                    let total = e.total;
+                                    process = (curr / total * 100).toFixed(0);
+                                    //console.log(file.name+"的第"+i+"个分片:"+process+"%")
+                                    for (let j = 0; j < _this.uploadFileProgress.length; j++) {
+                                        if (file.uid == _this.uploadFileProgress[j].uid) {
+                                            _this.uploadFileProgress[j].progress = process;
+                                            break;
+                                        }
+                                    }
+                                }, false);
+                            }
+                            return myXhr; //xhr对象返回给jQuery使用
+                        },
+                        success: function () {
+                            _this.uploadSuccess(file);
+                        }
+                    })
+                }
+                //分片上传
+                else {
+                    $.ajax({
+                        url: "/file/initPartUpload",
+                        type: "get",
+                        data: {fileName: file.name, fileSize: file.size},
+                        dataType: 'json',
+                        success: function (da) {
+                            if (da.success === "fulled") {
+                                _this.messageAlert("error", "您的容量不足, 请充值会员扩容");
+                                return;
+                            }
+                            let uploadId = da.data.uploadId;
+                            let saveFileName = da.data.saveFileName;
+                            for (let i = 0; i < chunks; i++) {
+                                let formData = new FormData();
+                                let start = i * maxSize;
+                                let end = Math.min(fileSize, start + maxSize);//在file.size和start+shardSize中取最小值，避免切片越界
+                                formData.append('file', file.slice(start, end));
+                                formData.append('fileName', file.name);
+                                formData.append('guid', file.uid);
+                                formData.append('chunk', i);
+                                formData.append('chunks', chunks);
+                                formData.append('md5', fileList.md5);
+                                formData.append('udid', _this.nowDirObj.id);
+                                formData.append('uploadId', uploadId);
+                                formData.append('saveFileName', saveFileName);
+                                $.ajax({
+                                    url: "/file/uploadPart",
+                                    type: "post",
+                                    data: formData,
+                                    cache: false,
+                                    async: true,
+                                    dataType: 'json',
+                                    contentType: false, //不设置内容类型
+                                    processData: false, //不处理数据
+                                    success: function (da1) {
+                                        //console.log("count======"+(count++));
+                                        console.log(da1.result);
+                                        count++;
+                                        for (let j = 0; j < _this.uploadFileProgress.length; j++) {
+                                            if (file.uid == _this.uploadFileProgress[j].uid) {
+                                                _this.uploadFileProgress[j].progress = parseInt(count / chunks * 100);
+                                                break;
+                                            }
+                                        }
+                                        fileList.partList.push(da1.data.partETag);
+                                        if (count === chunks) {
+                                            //console.log(fileList.partList);
+                                            let partNumbers = [];
+                                            let etags = [];
+                                            for (let j = 0; j < fileList.partList.length; j++) {
+                                                partNumbers.push(fileList.partList[j].partNumber);
+                                                etags.push(fileList.partList[j].etag);
+                                            }
+                                            $.ajax({
+                                                url: "/file/merge",
+                                                type: "post",
+                                                data: {
+                                                    guid: file.uid,
+                                                    fileName: file.name,
+                                                    md5: fileList.md5,
+                                                    udid: _this.nowDirObj.id,
+                                                    fileSize: fileSize,
+                                                    saveFileName: da.data.saveFileName,
+                                                    uploadId: da.data.uploadId,
+                                                    partNumbers: partNumbers,
+                                                    etags: etags
+                                                },
+                                                dataType: 'json',
+                                                success: function (da2) {
+                                                    //console.log("merge执行了");
+                                                    if (da2.result == "ok") {
+                                                        _this.uploadSuccess(file);
+                                                    }
+                                                }
+                                            });
+                                        }
+                                    }
+                                });
+                            }
+                        }
+                    });
+                }
+            },
+            /**
+             * 上传成功后的处理操作
+             */
+            uploadSuccess(file) {
+                let _this = this;
+                //遍历文件列表, 删除上传成功的文件
+                for (let j = _this.fileList.length - 1; j >= 0; j--) {
+                    if (this.fileList[j].uid == file.uid) {
+                        this.fileList.splice(j, 1);
+                        break;
+                    }
+                }
+                //console.log(_this.$refs.myupload._data);
+                //将官方的文件列表上传完成的文件删除
+                for (let j = 0; j < _this.$refs.myupload._data.uploadFiles.length; j++) {
+                    if (_this.$refs.myupload._data.uploadFiles[j].uid == file.uid) {
+                        _this.$refs.myupload._data.uploadFiles.splice(j--, 1);
+                        break;
+                    }
+                }
+
+                //进度条显示
+                for (let j = 0; j < _this.uploadFileProgress.length; j++) {
+                    if (file.uid == _this.uploadFileProgress[j].uid) {
+                        _this.uploadFileProgress[j].progress = 100;
+                        break;
+                    }
+                }
+
+                //刷新表格信息
+                _this.showTableData(_this.nowDirObj.id);
+                _this.messageAlert("success", file.name + "文件上传成功")
+            },
+            /**
+             * 获取文件的MD5
+             */
+            getFileMD5(fileObj) {
+                const file = fileObj.raw;
+                const fileSize = file.size; // 文件大小
+                const chunkSize = 1024 * 1024 * 30; // 切片的大小
+                const chunks = Math.ceil(fileSize / chunkSize); // 获取切片个数
+                const fileReader = new FileReader();
+                const spark = new SparkMD5.ArrayBuffer();
+                const bolbSlice =
+                    File.prototype.slice ||
+                    File.prototype.mozSlice ||
+                    File.prototype.webkitSlice;
+                let currentChunk = 0;
+
+                fileReader.onload = e => {
+                    const res = e.target.result;
+                    spark.append(res);
+                    currentChunk++;
+                    if (currentChunk < chunks) {
+                        loadNext();
+                        //console.log(`第${currentChunk}分片解析完成, 开始第${currentChunk +1}分片解析`);
+                    } else {
+                        const md5 = spark.end();
+                        //console.log('分片计算MD5完成');
+                        fileObj.md5 = md5;
+                        //console.log(md5)
+                    }
+                };
+
+                const loadNext = () => {
+                    const start = currentChunk * chunkSize;
+                    const end =
+                        start + chunkSize > file.size ? file.size : start + chunkSize;
+                    fileReader.readAsArrayBuffer(bolbSlice.call(file, start, end));
+                };
+                loadNext();
+            },
+            /**
+             * 下载文件  废弃
+             */
+            downloadFile1() {
+                let curentSelect = this.multipleSelection;
+
+                let fileSize = 0;
+
+                let dirs = [];
+                let files = [];
+                for (let i = 0; i < curentSelect.length; i++) {
+                    //选中的是目录
+                    if (curentSelect[i].fileType == null) {
+                        dirs.push(curentSelect[i].id);
+                    }
+                    //选中的是文件
+                    else {
+                        files.push(curentSelect[i].id);
+                        fileSize += curentSelect[i].fileSize;
+                    }
+                }
+                $.ajax({
+                    url: "/clouddisk/file/downloadFileByIds",
+                    type: "get",
+                    data: JSON.stringify({
+                        fileIds: "1310761225379495937"
+                    }),
+                    headers: {'Content-Type': 'application/json;charset=utf8'},
+                    dataType: "JSON",
+                    success: function (datas) {
+                        console.log(datas);
+                        // alert("文件下载成功！")
+                    }
+                });
+
+                for (let i = 0; i < files.length; i++) {
+                    const url = "/clouddisk/file/downloadFileByIds";
+                    $.fileDownload(url, {
+                        httpMethod: 'GET',
+                        data: {
+                            fileIds: files[i]
+                        }
+                    });
+                }
+            },
+            /**
+             * 分享文件弹出框
+             */
+            showShareFile() {
+                let select = this.multipleSelection;
+                console.log(select);
+                if (select.length > 1) {
+                    this.messageAlert("warning", "仅支持单文件分享");
+                    return;
+                }
+                if (select[0].fileName.indexOf("/")!=-1) {
+                    this.messageAlert("warning", "仅支持单文件分享, 文件夹分享暂不支持");
+                    return;
+                }
+                this.shareFileNow = this.multipleSelection[0];
+                console.log(this.shareFileNow);
+                this.shareFileDialogVisible = true;
+            },
+            //修改分享链接弹出框
+            updateShareFile() {
+                let select = this.multipleSelection;
+                if (select.length > 1) {
+                    this.messageAlert("warning", "仅支持单文件分享");
+                    return;
+                }
+                this.shareUpdateFileNow = this.multipleSelection[0];
+                //console.log(this.shareUpdateFileNow);
+                //console.log(this.shareUpdateFileNow.fileName);
+                this.shareUpdateVisble = true;
+            },
+            /**
+             * 分享文件（点击确认按钮）
+             */
+            shareFileClick() {
+                console.log(this.shareFileNow);
+                let _this = this;
+
+                $.ajax({
+                    url: "/clouddisk/share/getShareUrl",
+                    type: "get",
+                    contentType: "application/x-www-form-urlencoded",
+                    data: {
+                        fileId: _this.shareFileNow.fileId,
+                        shareTime: _this.shareTime
+                    },
+                    success: function (data) {
+                        _this.shareFilePassword = "";
+                        if (data.code === 1) {
+                            console.log("shareTime:" + _this.shareTime);
+                            _this.$alert(data.data, '请复制您的分享链接', {
+                                confirmButtonText: '确定',
+                                callback: action => {
+                                }
+                            });
+                        } else {
+                            _this.messageAlert("error", "分享失败");
+                        }
+                    }
+                });
+                this.shareFileDialogVisible = false;
+            },
+            /**
+             * 拖拽上传
+             */
+            mouseUpload() {
+                let _this = this;
+                let table = $("#table")[0];
+                document.ondrop = function (e) {
+                    e.preventDefault();
+                };
+                // 这个阻止默认事件是为了让drop事件得以触发
+                document.ondragover = function (e) {
+                    e.preventDefault();
+                };
+                table.ondrop = function (e) {
+                    // console.log(e);
+                    // 得到拖拽过来的文件
+                    var dataFiles = e.dataTransfer.files;
+
+                    for (let i = 0; i < dataFiles.length; i++) {
+                        if (dataFiles[i].size > 20 * 1024 * 1024) {
+                            _this.messageAlert("error", "单个文件不能超过20M文, 大文件不能使用拖拽上传");
+                            return;
+                        }
+                    }
+                    if (dataFiles.length > 3) {
+                        _this.messageAlert("error", "文件不能超过3个");
+                        return;
+                    }
+                    _this.$notify({
+                        title: '提示',
+                        message: _this.$createElement('i', {style: 'color: teal'}, '文件正在上传, 请稍后')
+                    });
+                    //判断数据库是否已经有此文件了
+                    for (let i = 0; i < dataFiles.length; i++) {
+                        let fileObj = {
+                            raw: dataFiles[i]
+                        };
+                        const p = new Promise(function (resolve, reject) {
+                            _this.getFileMD5(fileObj);
+                            setInterval(() => {
+                                if (fileObj.md5)
+                                    resolve()
+                            }, 500);
+                        });
+                        p.then(() => {
+                            $.ajax({
+                                url: "/file/findByMD5",
+                                type: "post",
+                                data: {
+                                    md5: fileObj.md5,
+                                    udid: _this.nowDirObj.id,
+                                    fileName: dataFiles[i].name,
+                                    fileSize: dataFiles[i].size
+                                },
+                                dataType: 'json',
+                                success: function (datas) {
+                                    if (datas.success === "fulled") {
+                                        _this.messageAlert("error", "您的空间不足, 请充值会员扩容");
+                                        return;
+                                    }
+                                    if (datas.result === "ok") {
+                                        _this.messageAlert("success", "上传[" + dataFiles[i].name + "]成功");
+                                        //刷新表格信息
+                                        _this.showTableData(_this.nowDirObj.id);
+                                    } else {
+                                        //上传文件
+                                        let formData = new FormData();
+                                        formData.append('file', dataFiles[i]);
+                                        formData.append('fileName', dataFiles[i].name);
+                                        formData.append('md5', fileObj.md5);
+                                        formData.append('udid', _this.nowDirObj.id);
+                                        $.ajax({
+                                            url: "/file/uploadSimple",
+                                            type: "post",
+                                            data: formData,
+                                            cache: false,
+                                            async: true,
+                                            dataType: 'json',
+                                            contentType: false, //不设置内容类型
+                                            processData: false, //不处理数据
+                                            success: function (datas) {
+                                                if (datas.result === "ok") {
+                                                    _this.messageAlert("success", "上传[" + dataFiles[i].name + "]成功");
+                                                    //刷新表格信息
+                                                    _this.showTableData(_this.nowDirObj.id);
+                                                } else {
+                                                    _this.messageAlert("error", "上传[" + dataFiles[i].name + "]失败");
+                                                }
+                                            }
+                                        })
+                                    }
+                                }
+                            })
+                        });
+                    }
+
+                }
+            },
+            /**
+             * 查询用户已存储的空间大小
+             */
+            showUserCapacity() {
+                let _this = this;
+                data = {
+                    ID: _this.user.userId
+                };
+                axios.post("/clouddisk/user/getSizeById", data).then(function (response) {
+                    let result = response.data;
+                    if (result.code == 1) {
+                        let capacity = result.data.usedSize;
+                        let total = result.data.spaceSize;
+                        let cap = {fileSize: capacity};
+                        let tot = {fileSize: total};
+                        _this.userCapacity = _this.calcFileSize(cap);
+                        _this.userTotal = _this.calcFileSize(tot);
+                        if (capacity == 0) {
+                            _this.capacityPer = 0;
+                        } else {
+                            _this.capacityPer = (capacity / total) * 100;
+                        }
+                    } else {
+                        _this.messageAlert("error", "容量查询出错");
+                    }
+                })
+            },
+            /**
+             * 跳转到个人中心，获取部门名
+             */
+            mycenter() {
+                var departmentId = 1;
+                $.ajax({
+                    url: "/clouddisk/department/getById",
+                    type: "post",
+                    contentType: "application/x-www-form-urlencoded",
+                    data: {
+                        departmentId: userEntity.departmentId
+                    }, success: function (data) {
+                        if (data.code == 1) {
+                            sessionStorage.setItem('departmentName', JSON.stringify(data.data.departmentName));
+                        } else if (data.code == -1) {
+                            sessionStorage.setItem('departmentName', JSON.stringify(data));
+                        }
+                        window.location.href = "./user/mycenter.html"
+                    }
+                })
+            },
+            /**
+             * 用户退出
+             */
+            quit() {
+                let _this = this;
+                $.ajax({
+                    url: "/clouddisk/logout",
+                    type: "get",
+                    dataType: 'text',
+                    success: function (datas) {
+                        _this.messageAlert("success", "用户退出");
+                        sessionStorage.clear();
+                        location.href = "/html/user/login.html";
+                    }
+                });
+
+            }
+        },
+        computed: {},
+        created: function () {
+            checkIsLogin();
+        },
+        mounted: function () {
+            this.showTableData(0);
+            this.showUserCapacity();
+            this.mouseUpload();
+        }
+    })
+</script>
+
+
+</body>
+
+</html>

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>修改密码</title>
+    <!-- 引入样式 -->
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+</head>
+
+<body>
+
+    <div id="app">
+        设置新密码<br><br><br>
+        <div style="width: 560px">
+            <el-input style="width: 280px;float: left" placeholder="请输入旧密码" v-model="password" show-password></el-input>
+            <el-alert id="password" :title="errormessage" style="width: 130px;display:none;margin-left:10px;float: left"
+                type="error" :closable="false">
+            </el-alert><br><br><br>
+            <el-input style="width: 280px;" placeholder="请输入新密码" v-model="newPassword1" show-password></el-input>
+            <br><br>
+            <el-input style="width: 280px;float: left" placeholder="再次输入新密码" v-model="newPassword2" show-password>
+            </el-input>
+            <el-alert id="newPassword" :title="errormessage" style="width: 142px;float: left;display:none;margin-left: 10px"
+                type="error" :closable="false">
+            </el-alert><br><br><br>
+            <el-button @click="setPassword" :plain="true" type="primary" round>确定</el-button>
+        </div>
+    </div>
+</body>
+<!--网络资源-->
+<script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.js"></script>
+<script src="https://cdn.bootcss.com/vue/2.6.10/vue.js"></script>
+<!-- 引入组件库 -->
+<script src="https://unpkg.com/element-ui/lib/index.js"></script>
+<script>
+    new Vue({
+        el: "#app",
+        data() {
+            return {
+                password: '',
+                newPassword1: '',
+                newPassword2: '',
+                errormessage:''
+            }
+        },
+        methods: {
+            setPassword() {
+                if (this.password != null && this.password != '' && this.newPassword1 != null && this.newPassword1 != '' && this.newPassword2 != null && this.newPassword2 != '') {
+                    if (this.newPassword2 != this.newPassword1) {
+                        this.errormessage = "两次密码不一致";
+                        $("#password").css("display", "none");
+                        $("#newPassword").css("display", "block");
+
+                    } else {
+                        var _this = this;
+                        $.ajax({
+                            url: "/clouddisk/user/resetPwd",
+                            type: "post",
+                            data: JSON.stringify({ oldPwd: _this.password, newPwd: _this.newPassword2 }),
+                            headers:{'Content-Type':'application/json;charset=utf8'},
+                            dataType: "JSON",
+                            beforeSend: function(request) {
+                                request.setRequestHeader("token", sessionStorage.getItem("token"));
+                            },
+                            success: function (data) {
+                                if(data.code == -1){
+                                    if(data.message == "请输入正确的旧密码")
+                                        _this.errormessage = "请输入正确的旧密码";
+                                    else if(data.message == "请输入与旧密码不相同的新密码")
+                                        _this.errormessage = "请输入与旧密码不相同的新密码";
+                                    else if(data.message == "更新密码失败")
+                                        _this.errormessage = "更新密码失败";
+                                    $("#newPassword").css("display", "none");
+                                    $("#password").css("display", "block");
+                                }
+                                else if (data.code == 1) {
+                                    _this.$message({
+                                        message: '修改成功！',
+                                        type: 'success'
+                                    });
+                                    window.setTimeout(function () {
+                                        location.reload();
+                                    }, 1000);
+                                }
+                            }
+                        })
+                    }
+                } else {
+                    this.$message.error('信息不能为空！');
+                }
+            }
+        }
+    })
+</script>
+
+</html>

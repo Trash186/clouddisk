@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>个人资料</title>
+    <!-- 引入样式 -->
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <style>
+        .center-name {
+            color: #909399;
+        }
+
+        .center-uname {
+            color: #606266;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="content">
+        <div style="margin-top: 70px">
+            <span style="font-size: 16px;color: #606266;">基础信息</span>
+            <el-divider content-position="right">
+                <el-link :underline="false" @click="dialogDataVisible = true" type="primary">编辑资料</el-link>
+            </el-divider>
+
+
+            <div style="float: left;">
+                <span class="center-name">用户名：</span><span class="center-uname">{{ user.userName }}</span></br>
+                <br>
+                <span class="center-name">联系电话：</span><span class="center-uname">{{ user.userMobile }}</span></br>
+                <br>
+                <span class="center-name">用户角色：</span><span class="center-uname">{{ userPart }}</span>
+            </div>
+            <div style="margin-left: 360px">
+                <span class="center-name">真实姓名：</span><span class="center-uname">{{ user.userRealname }}</span></br>
+                <br>
+                <span class="center-name">邮箱地址：</span><span class="center-uname">{{ user.userEmail }}</span></br>
+                <br>
+                <span class="center-name">所在部门：</span><span class="center-uname">{{ departmentName }}</span>
+            </div>
+
+
+        </div>
+        <el-dialog title="编辑资料" width="300px" :visible.sync="dialogDataVisible">
+            <form>
+                用 户 名：<el-input style="margin-bottom: 16px;" v-model="userName" readonly="readonly" clearable></el-input>
+                真实姓名：<el-input style="margin-bottom: 16px;" v-model="userRealname" readonly="readonly" clearable></el-input>
+                联系电话：<el-input  v-model="userMobile" clearable></el-input>
+
+            </form>
+            <div slot="footer" class="dialog-footer">
+                <el-button @click="dialogDataVisible = false">取 消</el-button>
+                <el-button type="primary" :plain="true" @click="submitData()">确 定</el-button>
+            </div>
+        </el-dialog>
+    </div>
+</body>
+<!--网络资源-->
+<script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.js"></script>
+<script src="https://cdn.bootcss.com/vue/2.6.10/vue.js"></script>
+<!-- 引入组件库 -->
+<script src="https://unpkg.com/element-ui/lib/index.js"></script>
+<script>
+    var userEntity = JSON.parse(sessionStorage.getItem('user'));
+    var userPart="普通用户";
+    if(userEntity.userPart==1){
+        userPart="管理员";
+    }else if(userEntity.userPart==2){
+        userPart="文件管理员"; //?
+    }
+    var departmentName = JSON.parse(sessionStorage.getItem('departmentName'));
+    if(departmentName==null){
+        departmentName="暂无";
+    }
+    new Vue({
+        el: '#content',
+        data() {
+            return {
+                user:userEntity,
+                userId:userEntity.userId,
+                userName:userEntity.userName,
+                userMobile:userEntity.userMobile,
+                userPart:userPart,
+                userRealname:userEntity.userRealname,
+                userEmail:userEntity.userEmail,
+                departmentId:userEntity.departmentId,
+                //circleUrl: "../../img/user/tx3.jpg",
+                dialogDataVisible:false,
+                dialogFormVisible: false,
+                departmentName:departmentName
+
+            }
+        },
+        methods: {
+            submitData() {
+                var _this = this;
+                if (this.userMobile.length!=11) {
+                    _this.$message({
+                        showClose: true,
+                        message: "请输入正确的联系电话",
+                        type: "warning"
+                    });
+                    return;
+                }
+                $.ajax({
+                    url: "/clouddisk/user/updateUser",
+                    type: "post",
+                    dataType: "JSON",
+                    contentType: "application/json;charset=UTF-8",
+                    data: JSON.stringify(
+                        {userId:_this.userId,userEmail:_this.userEmail, userMobile:_this.userMobile}
+                    ),
+                    success: function (data) {
+                        if (data.code==1) {
+                            sessionStorage.setItem('user', JSON.stringify(data.data));
+                            window.setTimeout(function () {
+                                location.reload();
+                            }, 1000)
+                        } else {
+                            console.log("修改失败！");
+                        }
+
+                    }
+                });
+            }
+        }
+    })
+</script>
+
+</html>
